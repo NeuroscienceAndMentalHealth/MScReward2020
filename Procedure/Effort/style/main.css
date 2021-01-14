@@ -1,0 +1,84 @@
+
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+html, body {
+    margin: 0;
+    height: 100%;
+    /* overflow: hidden */
+}
+
+#gorilla {
+    /* Everything is inside this, so these rules apply to every element */
+    display: none;     /* Hide everything until we're ready to show it */
+    font-size: 18pt;
+}
+
+.instructions {
+    position: absolute;
+    left: 50vw;
+    /* top: 20vh; */
+    bottom: 35vh;               /*Just above buttons*/
+    transform: translate(-50%, 0%);
+    /* font-size: 2em; */
+    text-align: center;
+    width: 100%;
+    max-width: 120vh;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2em;
+}
+
+.instructions > * {
+    position: relative;
+}
+
+#target{
+    position: absolute;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    top: 50vh;
+    left: 50vw;
+    font-size: 40pt;
+}
+
+.resp-btn {
+    position: absolute;
+    top: 65vh;
+    padding: 15px 25px;
+    font-size: 24pt;
+    text-align: center;
+    /* cursor: pointer; */
+    outline: none;
+    color: #000;
+    background-color: #DDD;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 9px #999;
+}
+
+/* .resp-btn:active, */
+.resp-btn.active {
+    background-color: #BBB ;
+    box-shadow: 0 5px #777;
+    transform: translateY(4px);
+}
+#btn-left {
+    right: 60vw;
+}
+#btn-right {
+    left: 60vw;
+}
+
+.red {
+    color: red;
+}
+
+.green {
+    color: green;
+}
+.lined {
+    text-decoration: underline;
+}

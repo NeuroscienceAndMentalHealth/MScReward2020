@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Libraries already loaded by Gorilla -->
+        <script src="../libs/jquery.min.js"></script>
+        <script src="../libs/bootstrap.min.js"></script>
+        <link href="../libs/bootstrap.min.css" rel="stylesheet"/>
+        <!-- Our libraries -->
+        <script src="../libs/lodash.min.js"></script>
+        <script src="../libs/primate.js"></script>
+        <!-- Our code -->
+        <link  href="style/main.css" rel="stylesheet"/>
+        <script src="js/utils.js"></script>
+        <script src="js/main.js"></script>
+    </head>
+
+    <body>
+        <div id="gorilla">
+
+            <!-- <p id="score">Score: <span id="score-points">0</span> points</p> -->
+            <div id="clock">
+                <div id="circle"></div>
+                <img id="face" alt="" src="stimuli/face.svg"/>
+                <img id="hand" alt="" src="stimuli/hand.svg"/>
+            </div>
+            <p id="feedback">+50</p>
+            <div id="start">
+                <h2>Clock Task</h2>
+                <p>
+                    On each round of this task, you will see a clock.
+                    It takes 5 seconds for the hand of this clock to go the whole way around once.
+                    Your task is to press the spacebar before it does in order to win
+                    as many points as you can.
+                </p>
+                <p>
+                    The points you win on each round depend on where the hand is when you press the spacebar.
+                    At some locations, you're very likely to win points.
+                    At others, you're more likely to receive no points.
+                    When this happens, you'll see an <b>✗</b> instead.
+                </p>
+                <p>
+                    The amount of points you can win also depends on where the hand is.
+                    At some locations, you'll score lots of points.
+                    At others, you'll only score a few.
+                    If you don't respond by the end of the clock cycle,
+                    you don't get any points.
+                </p>
+                <p>
+                    You'll play with four different clocks,
+                    and the good and bad locations will be different for each one.
+                    You'll play 40 rounds with each clock.
+                    The task will take 15 minutes in total.
+                </p>
+                <p>
+                    <b>
+                        Try to press the spacebar at different locations
+                        in order to learn which area earns the most points!
+                    </b>
+                </p>
+                <p>
+                    Note that the clock will always go around to the end,
+                    no matter when you press the spacebar.
+                </p>
+                <p>
+                    Press the spacebar to begin.
+                </p>
+            </div>
+            <p id="start-block">
+                In this section, you'll be playing with the
+                <span id="block-colour"></span> clock.<br>
+                Remember, try to respond when the hand is at different locations
+                to learn how to make the most points.<br>
+                Press the spacebar to continue.
+            </p>
+            <p id="prompt"></p>
+            <p id="end">
+                End of Experiment<br>
+                [Redirecting...]
+            </p>
+        </div>
+    </body>
+</html>

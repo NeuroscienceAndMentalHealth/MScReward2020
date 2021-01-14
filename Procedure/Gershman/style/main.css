@@ -1,0 +1,66 @@
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+#gorilla {
+    /* Everything is in the body, so these rules apply to every element */
+    display: none;     /* Hide everything until we're ready to show it */
+    font-size: 18pt;
+}
+
+#start > * {
+    position: relative;
+}
+
+.centered {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    text-align: center;
+    transform: translate(-50%, -50%);
+}
+
+#start{
+    padding: 2em;
+    width: 100vw;
+}
+
+#stimuli{
+    height: 6em;
+    width: 14em;
+}
+#stimuli > .btn, #stimuli > .feedback{
+    width: 3em;
+    height: 2em;
+    font-size: 30pt;
+    text-align: center;
+    border: black;
+}
+#left-btn{
+    margin-right: 1em;
+}
+#right-btn{
+    margin-left: 1em;
+}
+
+#next-btn{
+    transform: translateY(100%);
+}
+
+#stimuli > .feedback{
+    position: absolute;
+    top: 0;
+    transform: translateY(-100%);
+    z-index: -50;
+}
+#left-feedback{left: 0;}
+#right-feedback{right: 0;}
+
+.fade{
+    opacity: .1;
+}
+
+.btn {
+    transition: none;
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Libraries already loaded by Gorilla -->
+        <script src="../libs/jquery.min.js"></script>
+        <script src="../libs/bootstrap.min.js"></script>
+        <link  href="../libs/bootstrap.min.css" rel="stylesheet"/>
+        <!-- Our libraries -->
+        <script src="../libs/lodash.min.js"></script>
+        <script src="../libs/primate.js"></script>
+        <script src="../libs/randomcolor.min.js"></script>
+        <!-- Our code -->
+        <link href="style/main.css" rel="stylesheet"/>
+        <script src="js/utils.js"></script>
+        <script src="js/main.js"></script>
+    </head>
+
+    <body>
+        <div id="gorilla">
+            <!-- Everything inside this element will be copied into Gorilla -->
+            <!-- Start copying here -->
+
+            <div id="start" class="centered">
+                <h2>Slot Machine Task</h2>
+                <p>
+                    In this task, you have a choice between two slot
+                    machines, represented by colored buttons. When you
+                    click one of the buttons, you will win or lose
+                    points. Choosing the same slot machine will not
+                    always give you the same points, but one slot
+                    machine is always better than the other. Your goal
+                    is to choose the slot machine that will give you
+                    the most points. After making your choice, you
+                    will receive feedback about the outcome.
+                </p>
+                <p>
+                    Sometimes the machines are "safe" (always
+                    delivering the same feedback), and sometimes the
+                    machines are "risky" (delivering variable
+                    feedback). Before you make a choice, you will get
+                    information about each machine: "S" indicates
+                    SAFE, "R" indicates RISKY. Note that safe/risky is
+                    independent of how rewarding a machine is: a risky
+                    machine may deliver more points on average than a
+                    safe machine, and vice versa. You cannot predict
+                    how good a machine is based on whether it is safe
+                    or risky.
+                </p>
+                <p>
+                    You will play 30 games, each with a different pair of slot machines.<br>
+                    Each game will consist of 10 trials.
+                </p>
+                <p>
+                    <button id="start-btn" class="btn btn-primary">Start</button>
+                </p>
+            </div>
+
+            <div id="stimuli" class="centered">
+                <div id="left-feedback"  class="feedback btn">X</div>
+                <div id="right-feedback" class="feedback btn">X</div>
+                <div id="left-btn"  class="btn btn-primary option">Safe</div>
+                <div id="right-btn" class="btn btn-primary option">Risky</div>
+                <div id="next-btn" class="btn btn-primary">Next</div>
+            </div>
+
+            <div id="break" class="centered">
+                <h2>Time for Game #<span id="which-game"></span></h2>
+                <p>
+                    You scored <span class="last-score"></span> points
+                    on the last game.
+                </p>
+                <p>This game will feature a new set of slot machines.</p>
+                <p>
+                    <button id="resume-btn" class="btn btn-primary">Start</button>
+                </p>
+            </div>
+
+            <div id="end" class="centered">
+                <h2>End of Experiment</h2>
+                <p>
+                    You scored <span class="last-score"></span> points
+                    on the last game.
+                </p>
+                <p>Please wait...</p>
+            </div>
+        </div>
+    </body>
+</html>

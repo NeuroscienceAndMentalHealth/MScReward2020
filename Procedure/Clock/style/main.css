@@ -1,0 +1,93 @@
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+#gorilla {
+    /* Everything is in the body, so these rules apply to every element */
+    font-size: 14pt;
+    display: none;     /* Hide everything until we're ready to show it */
+}
+
+#start {
+    font-size: 1.25em;
+    text-align: center;
+    max-width: 100vh;
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 2em;
+    padding-left: 2em;
+    padding-right: 2em;
+}
+
+#clock{
+    position: absolute;
+    left: 50vw;
+    top: 35vh;
+    width: 30vh;
+    height: 30vh;
+}
+
+#face, #hand, #circle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#circle{
+    border-radius: 50%;
+    background-color: red;
+}
+/* These rules for text elements could be simplified */
+#feedback {
+    color: black;
+    width: auto;
+    font-size: 2em;
+    position: absolute;
+    width: 20vw;
+    text-align: center;
+    transform: translate(-50%, -50%);
+}
+
+#prompt, #score, #start-block, #end {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    width: 80vw;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    font-size: 3em;
+}
+
+#score {
+    top: 1em;
+    font-size: 2em;
+}
+
+#start-block{
+    font-size: 2em;
+}
+
+/* Make anything with class="spin" spin around */
+/* This isn't currently used */
+.spinning {
+  animation-name: spin;
+  animation-duration: 5000ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+@-moz-keyframes spin {
+    from { -moz-transform: rotate(0deg); }
+    to { -moz-transform: rotate(360deg); }
+}
+@-webkit-keyframes spin {
+    from { -webkit-transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); }
+}
+@keyframes spin {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(360deg);}
+}
+/* End of spinning code */
