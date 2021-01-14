@@ -1,0 +1,130 @@
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+
+/*
+ This CSS file is probably more complex than it needs to me.
+ Maybe think about tidying it up in future.
+*/
+
+html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+img.mini {
+    height: 2em;
+}
+#gorilla {
+    /* Everything is in the body, so these rules apply to every element */
+    display: none;     /* Hide everything until we're ready to show it */
+    font-size: 18pt;
+}
+
+#start > * {
+    position: relative;
+}
+
+#score {
+    position: absolute;
+    left: 50vw;
+    top: 1em;
+    font-size: 2em;
+    text-align: center;
+    transform: translate(-50%, -50%);
+}
+
+
+#start, #target, #fix, #feedback, #end {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    width: 100vw;
+    text-align: center;
+    transform: translate(-50%, -50%);
+}
+
+#start{
+    max-width: 120vh;
+    padding: 1em;
+}
+
+#target, #fix{
+    font-family: "Lucida Console", Monaco, monospace;
+}
+#fix  {
+    font-size: 4em;
+}
+#feedback {
+    color: black;
+    font-size: 2em;
+}
+#end {
+    font-size: 2m;
+}
+
+#boxes{
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    width: 40vh;
+    height: 40vh;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    /* border: solid; */
+}
+
+.options, .outcome {
+    position: absolute;
+    width: 18vh;
+    height: 18vh;
+}
+.options > img {
+    width: 100%;
+    /* height: 100%; */   /* This lines forces images to be square */
+}
+
+.top-left    { left:  0; top: 0;     transform: translate(0, 0);}
+.top-right    { left: 22vh; top: 0;    transform: translate(0, 0);}
+.bottom-left  { left:  0;   top: 22vh; transform: translate(0, 0);}
+.bottom-right { left: 22vh; top: 22vh; transform: translate(0, 0);}
+
+.opaque {
+    opacity: .5;
+    z-index: -500;
+}
+
+.hidden {
+    display: none;
+}
+
+#folder {
+    position: absolute;
+    left: 50vw;
+    bottom: 0vh;
+}
+#folder > * {
+    width: 20vh;
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+}
+#folder-bottom {z-index: -1;}
+#folder-top {z-index: 50;}
+
+.foldered {
+    transition: top 1s ease-in, bottom 1s ease-in, left 1s ease-out, right 1s ease-out, transform 1s ease-out;
+    top: 100vh !important;
+    left: 20vh !important;
+    transform: translate(-50%, -50%);
+}
+
+.green {
+    color: green;
+}
+.red {
+    color: red;
+}

@@ -1,0 +1,185 @@
+
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+html, body {
+    margin: 0;
+    height: 100%;
+    /* overflow: hidden */
+}
+
+#gorilla {
+    /* Everything is inside this, so these rules apply to every element */
+    display: none;     /* Hide everything until we're ready to show it */
+    font-size: 18pt;
+}
+
+#start, #break {
+    /* position: absolute; */
+    /* left: 50vw; */
+    /* top: 50vh; */
+    /* font-size: 2em; */
+    text-align: center;
+    /* transform: translate(-50%, -50%); */
+    width: 100%;
+    max-width: 120vh;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2em;
+}
+
+#start > * {
+    position: relative;
+}
+
+#example-cards > img {
+    height: 8em;
+    margin: 0 1em;
+}
+
+.tbl {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+.tbl-row {
+    max-width: 20%;
+    /* border: dashed; */
+    padding: 3px;
+    /* max-width: 25vh; /\* Total max available is 120vh *\/ */
+}
+.tbl-row > img {
+    width: 100%;
+}
+
+#score {
+    position: absolute;
+    left: 50vw;
+    top: 1em;
+    font-size: 2em;
+    text-align: center;
+    transform: translate(-50%, -50%);
+}
+
+#hand {
+    position: absolute;
+    top: 70vh;
+    left: 50vw;
+    height: 10vh;
+    transform: translate(-50%, -50%); /* rotate(-30deg); */
+    transition: left ease-in-out .3s, transform ease-in-out .3s;
+    z-index: 500;
+}
+
+
+/* #gorilla > * { */
+/*     border: solid; */
+/* } */
+
+
+/* Style for Roulette Wheels */
+svg.pie {
+    width: 200px;
+    height: 200px;
+    /* z-index: 10; */
+    left: 15vh;
+    top: 15vh;
+}
+svg.pie > .outline {
+    fill: transparent;
+    stroke: black;
+    stroke-width: 10;
+}
+svg.pie > path {
+    fill: red;
+    stroke-width: 1;
+}
+svg.pie > .green {fill: green; }
+svg.pie > .red   {fill: red; }
+svg.pie > .white   {fill: white; }
+
+
+p, h1, h2, h3, h4 {
+    text-align: center;
+}
+
+
+.card {
+    border: solid black;
+    border-radius: 1vh;
+    background: lightgray;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+#left-card{left: 33vw;}
+#right-card{left: 66vw;}
+
+.card.active {
+    transform: translate(-50%, -50%);
+    top: 40vh;
+}
+
+.card.chosen {
+    transition: top 1s ease-in, left 1s ease-out, transform 1s ease-out;
+    /* height: 3vh !important; */
+    /* width: 2vh !important; */
+    top: 120vh;
+    /* top: 90vh; */
+    left: 50vw !important;
+    transform: translate(-50%, -50%) scale(25%);
+}
+
+.gamble {
+    width:  30vh;
+    height: 30vh;
+}
+
+.card > * {
+    position: absolute;
+    /* transform: translate(-50%, -50%); */
+}
+
+.gamble > * {
+    position: absolute;
+    transform: translate(-50%, -50%);
+}
+
+.quant {
+    font-size: 5vh;
+    color: black;
+    /* -webkit-text-stroke-width: .01em; */
+    /* -webkit-text-stroke-color: black; */
+    left: 15vh;
+    /* z-index: 2; */
+}
+
+.txt-win {
+    top: 7.5vh;
+}
+.txt-neutral {
+    top: 15vh;
+}
+.txt-loss {
+    top: 22.5vh;
+}
+
+#folder {
+    position: absolute;
+    left: 50vw;
+    bottom: 0vh;
+}
+#folder > * {
+    width: 20vh;
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+}
+#folder-bottom {z-index: -1;}
+#folder-top {z-index: 50;}

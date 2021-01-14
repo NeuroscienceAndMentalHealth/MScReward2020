@@ -1,0 +1,15 @@
+digraph G {
+        rankdir=LR;
+        Ready -> StartExperiment;
+        StartExperiment -> PrepareTrial;
+        PrepareTrial -> StartTrial;
+        StartTrial -> CheckKeys [label="on key"];
+        CheckKeys -> ProcessKeys [label="if response key"];
+        StartTrial -> ProcessClick [label="on click"];
+        ProcessKeys -> HandleResponse;
+        ProcessClick -> HandleResponse;
+        HandleResponse -> ShowFeedback;
+        ShowFeedback -> LogData;
+        LogData -> PrepareTrial["Not done"];
+        LogData -> EndExperiment["Done"];
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Libraries already loaded by Gorilla -->
+        <script src="../libs/jquery.min.js"></script>
+        <script src="../libs/bootstrap.min.js"></script>
+        <link href="../libs/bootstrap.min.css" rel="stylesheet"/>
+        <!-- Our libraries -->
+        <script src="../libs/lodash.min.js"></script>
+        <script src="../libs/primate.js"></script>
+        <!-- Our code -->
+        <link  href="style/main.css" rel="stylesheet"/>
+        <script src="js/utils.js"></script>
+        <script src="js/main.js"></script>
+    </head>
+
+    <body>
+        <div id="gorilla">
+            <!-- Everything inside this element will be copied into Gorilla -->
+            <!-- Start copying here -->
+            <div id="start">
+                <h1 id="title">Gambling Task</h1>
+                <p>
+                    In each round of this task, you will see two cards:
+                    one showing a risky gamble,
+                    and one showing a safe option,
+                    where you don't win or lose anything.
+                </p>
+                <p>
+                    Some of these cards are shown below, along with an explanation of what they're worth.
+                    Please make sure you understand these cards before continuing.
+                </p>
+                <p>
+                    <div class="tbl">
+                        <div class="tbl-row"> <img alt="" src="stimuli/safe_gain.png"/> <p>Win £2 for sure.</p> </div>
+                        <div class="tbl-row"> <img alt="" src="stimuli/safe.png"/> <p>Win nothing.</p> </div>
+                        <div class="tbl-row"> <img alt="" src="stimuli/safe_loss.png"/> <p>Lose £2 for sure.</p> </div>
+                    </div>
+                    <div class="tbl">
+                        <div class="tbl-row"> <img alt="" src="stimuli/risky_gain.png"/> <p>50% chance of winning £4, <br> 50% chance of nothing.</p> </div>
+                        <div class="tbl-row"> <img alt="" src="stimuli/mixed.png"/> <p>50% chance of winning £4,      <br> 50% chance of losing £5.</p> </div>
+                        <div class="tbl-row"> <img alt="" src="stimuli/risky_loss.png"/> <p>50% chance of nothing,    <br> 50% chance of losing £4.</p> </div>
+                    </div>
+                </p>
+                <p>
+                    Your job is to pick one of the two cards shown on each round,
+                    by pressing the left and right arrow keys.
+                    Choose carefully, because after the experiment we'll run all of the gambles for real,
+                    and give you the average of your winnings on each one as a bonus payment!
+                </p>
+                <p>
+                    There will be <span id="n_trials">__</span> rounds in total.
+                </p>
+                <p class="secret-button">Press SPACE to begin.</p>
+            </div>
+            <!-- <p id="score">Score: <span id="score-points">0</span> points</p> -->
+            <img id="hand" alt="" src="stimuli/hand.png"/>
+            <p id="prompt"></p>
+            <div id="folder">
+                <img id="folder-bottom" alt="" src="stimuli/folder_bottom.png"/>
+                <img id="folder-top" alt="" src="stimuli/folder_top.png"/>
+            </div>
+        </div>
+
+    </body>
+</html>

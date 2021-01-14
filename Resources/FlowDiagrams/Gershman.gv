@@ -1,0 +1,11 @@
+digraph G {
+rankdir=LR;
+    Ready -> PrepareBlock;
+    PrepareBlock -> StartTrial;
+    StartTrial -> CheckResponse [label="on click"];
+    CheckResponse -> LogData;
+    LogData -> EndBlock [label="Block done"];
+    LogData -> StartTrial [label="Block not done (on click)"];
+    EndBlock -> PrepareBlock [label="Task not done (on click)"];
+    EndBlock -> EndExperiment [label="Task done"];
+}

@@ -1,0 +1,9 @@
+digraph G {
+        rankdir=LR;
+        Ready -> StartTrial [label="on click"];
+        StartTrial -> GetResponse [label="on click"];
+        GetResponse -> ShowFeedback;
+        ShowFeedback -> LogData;
+        LogData -> EndExperiment [label="Finished"];
+        LogData -> StartTrial [label="Not Finished"];
+}

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Libraries already loaded by Gorilla -->
+        <script src="../libs/jquery.min.js"></script>
+        <script src="../libs/bootstrap.min.js"></script>
+        <link href="../libs/bootstrap.min.css" rel="stylesheet"/>
+        <!-- Our libraries -->
+        <script src="../libs/lodash.min.js"></script>
+        <script src="../libs/primate.js"></script>
+        <!-- Our code -->
+        <link href="style/main.css" rel="stylesheet"/>
+        <script src="js/utils.js"></script>
+        <script src="js/probabilities.js"></script> <!-- Imports variable `probabilities` -->
+        <script src="js/main.js"></script>
+        <!-- <script src="../libs/sparkline.js"></script> -->
+    </head>
+
+    <body>
+        <div id="gorilla">
+            <!-- Everything inside this element will be copied into Gorilla -->
+            <!-- Start copying here -->
+            <div id="start">
+                <h2> Coin Hunt</h2>
+                <p>
+                    In each round of this task, you'll see four doors,
+                    and have to choose one of them.<br>
+                    Behind some doors, you'll find a green bonus token, like this:
+                    <img class="mini" alt="" src="stimuli/gain.svg"/>.<br>
+                    Behind others, you'll find a red punishment token, like this:
+                    <img class="mini" alt="" src="stimuli/loss.svg"/>.<br>
+                    Behind some doors, you'll find both:
+                    <img class="mini" alt="" src="stimuli/both.svg"/><br>
+                    ...or neither.
+                </p>
+                <hr/>
+                <p>
+                    Your job is to find as many bonus tokens as you can,
+                    while avoiding the punishment tokens. <br>
+                    You score one point for each reward token you get,
+                    and lose a point for each punishment token.
+                    <b>You will receive a bonus payment after the task
+                        depending on the number of points you score.
+                    </b>
+                </p>
+                <p>
+                    <b>Important:</b>
+                    The chances of finding a bonus or punishment token
+                    are different for each door,
+                    and these chances change over time.
+                    This means that it's important to keep trying out
+                    different doors to keep track of which one is best.
+                </p>
+                <hr/>
+                <p>
+                    There will be 200 rounds in total, and the task should take
+                    less than 8 minutes to complete.
+                </p>
+                <p>
+                    <button id="start-btn" class="btn btn-success">
+                        Click here to start
+                    </button>
+                </p>
+            </div>
+
+            <!-- <p id="score">Score: <span id="score-points">0</span> points</p> -->
+            <p id="fix">+</p>
+            <div id="boxes">
+                <img id="outcome" class="outcome" alt="" src="stimuli/gain.svg"/>
+                <button ix=1 id="box1" class="options top-left btn-dark">     <img alt="" src="stimuli/box1.jpg"/> </button>
+                <button ix=2 id="box2" class="options top-right btn-dark">    <img alt="" src="stimuli/box2.jpg"/> </button>
+                <button ix=3 id="box3" class="options bottom-left btn-dark">  <img alt="" src="stimuli/box3.jpg"/> </button>
+                <button ix=4 id="box4" class="options bottom-right btn-dark"> <img alt="" src="stimuli/box4.jpg"/> </button>
+            </div>
+            <div id="folder">
+                <img id="folder-bottom" alt="" src="stimuli/folder_bottom.png"/>
+                <img id="folder-top" alt="" src="stimuli/folder_top.png"/>
+            </div>
+            <p id="end">
+                End of Experiment.<br>
+                Stand by...
+            </p>
+            <div class="hidden">
+                <img alt="" src="stimuli/gain.svg"/>
+                <img alt="" src="stimuli/loss.svg"/>
+                <img alt="" src="stimuli/both.svg"/>
+            </div>
+            <!-- <svg class="sparkline" width="100" height="30" stroke-width="3"></svg>
+            -->
+            <!-- Stop copying here -->
+        </div>
+    </body>
+</html>

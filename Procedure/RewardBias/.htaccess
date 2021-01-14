@@ -1,0 +1,13 @@
+Order allow,deny
+Deny from all
+Allow from 127.0.0.1
+
+Options -Indexes
+DirectoryIndex index.php index.html
+
+<Files ~ "\.(html|php|css|js|jpg|png|svg)$">
+   allow from all
+</Files>
+<FilesMatch "^(/)?$">
+   allow from all
+</FilesMatch>

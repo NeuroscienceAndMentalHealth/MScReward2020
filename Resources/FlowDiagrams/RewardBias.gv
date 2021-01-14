@@ -1,0 +1,14 @@
+digraph G {
+        rankdir=LR;
+        Ready -> StartBlock [label="Spacebar"];
+        StartBlock -> PrepareTrial [label="Spacebar"];
+        PrepareTrial -> ShowFixation [label="Wait ITI"];
+        ShowFixation -> ShowCues [label="Wait fixation_time"];
+        ShowCues -> WaitResponse [label="Wait stimulus_time"];
+        WaitResponse -> CheckResponse [label="On key"];
+        CheckResponse -> ShowFeedback;
+        ShowFeedback -> LogData [label="Wait feedback_time"];
+        LogData -> PrepareTrial [label="If block not done"];
+        LogData -> StartBlock [label="If block done"];
+        LogData -> End [label="If finished"];
+}

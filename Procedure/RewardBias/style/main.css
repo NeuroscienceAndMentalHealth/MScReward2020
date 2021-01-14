@@ -1,0 +1,207 @@
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+#gorilla {
+    /* Everything is in the body, so these rules apply to every element */
+    font-size: 14pt;
+    display: none;     /* Hide everything until we're ready to show it */
+}
+
+#start, #instructions{
+    position: absolute;
+    left: 50vw;
+    bottom: 10vh;
+    width: 75vw;
+    text-align: center;
+    transform: translate(-50%, 0%);
+}
+/* #start { */
+/*     top: 75vh; */
+/* } */
+
+#score{
+    position: absolute;
+    left: 50vw;
+    top: 1em;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    font-size: 2em;
+}
+
+#feedback{
+    position: absolute;
+    left: 50vw;
+    top: 40vh;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    font-size: 2em;
+}
+
+.stimuli{
+    height: 10vh;
+    position: absolute;
+    top: 50vh;
+    left: 50vw;
+    transform: translate(-50%, -50%);
+}
+
+#left_urn, #left_occluder{
+    left: 40vw;
+    top: 25vh;
+}
+
+#right_urn, #right_occluder{
+    left: 60vw;
+    top: 25vh;
+}
+
+#btn-left {
+    left: 40vw;
+}
+#btn-right {
+    left: 60vw;
+}
+
+.occluder{
+    height: 15vh;
+    width: 15vh;
+    border: solid;
+    border-radius: 50%;
+}
+
+#hand {
+    top: 55vh;
+    transform: translate(-50%, -50%); /* rotate(-30deg); */
+    /* transition: left ease-out .25s, transform ease-out .25s; */
+    /* transition: left ease-out .25s, transform ease-out .25s; */
+    /* transition: left ease-in-out .6s, transform ease-in-out .6s; */
+    transition: left linear .4s, transform linear .4s;
+}
+
+#ball {
+    background-color: #0f0;
+    width:  1.75vh;
+    height: 1.75vh;
+    border-radius: 50%;
+    left: 45vw;
+    top: 25vh;
+}
+
+#ground {
+    top: 90vh;
+    height: 10vh;
+    background-color: lightgrey;
+    left: 0;
+    width: 100vw;
+    transform: none;
+}
+
+#fix {
+    left: 50vw;
+    top: 50vh;
+    font-size: 3em;
+}
+
+.target {
+    height: 20vh;
+    width: 20vh;
+    top: 50vh;
+    /* background-color: #999999; */
+    left: 50vw;
+    border: solid black 2pt;
+    border-radius: 50%;
+}
+
+/* #right_target{ */
+/*     left: 55vw; */
+/* } */
+
+/* #hidden-svg{ */
+/*     display: none; */
+/* } */
+
+
+.resp-btn {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    top: 70vh;
+    padding: 15px 25px;
+    font-size: 24pt;
+    text-align: center;
+    font-family: monospace, monospace;
+    outline: none;
+    color: #000;
+    background-color: #DDD;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 9px #999;
+}
+
+/* .resp-btn:active, */
+.resp-btn.active {
+    background-color: #BBB ;
+    box-shadow: 0 5px #777;
+    transform: translate(-50%, -45%);
+}
+
+/* https://css-tricks.com/snippets/css/shake-css-keyframe-animation/ */
+.shaking {
+  -webkit-animation: shake 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+          animation: shake 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+    10%, 90% {
+        transform: translate(-51%, -50%);
+    }
+    20%, 80% {
+        transform: translate(-48%, -50%);
+    }
+    30%, 50%, 70% {
+        transform: translate(-54%, -50%);
+    }
+    40%, 60% {
+        transform: translate(-46%, -50%);
+    }
+}
+
+/* @keyframes shake { */
+/*     10%, 90% { */
+/*         transform: translate(-52.5%, -50%); */
+/*         -webkit-transform: translate(-52.5%, -50%); */
+/*     } */
+/*     20%, 80% { */
+/*         transform: translate(-45%, -50%); */
+/*         -webkit-transform: translate(-45%, -50%); */
+/*     } */
+/*     30%, 50%, 70% { */
+/*         transform: translate(-60%, -50%); */
+/*         -webkit-transform: translate(-60%, -50%); */
+/*     } */
+/*     40%, 60% { */
+/*         transform: translate(-40%, -50%); */
+/*         -webkit-transform: translate(-40%, -50%); */
+/*     } */
+/* } */
+
+
+/* @-webkit-keyframes shake { */
+/*     10%, 90% { */
+/*         transform: translate(-52.5%, -50%); */
+/*         -webkit-transform: translate(-52.5%, -50%); */
+/*     } */
+/*     20%, 80% { */
+/*         transform: translate(-45%, -50%); */
+/*         -webkit-transform: translate(-45%, -50%); */
+/*     } */
+/*     30%, 50%, 70% { */
+/*         transform: translate(-60%, -50%); */
+/*         -webkit-transform: translate(-60%, -50%); */
+/*     } */
+/*     40%, 60% { */
+/*         transform: translate(-40%, -50%); */
+/*         -webkit-transform: translate(-40%, -50%); */
+/*     } */
+/* } */

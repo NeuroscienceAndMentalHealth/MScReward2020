@@ -1,0 +1,28 @@
+digraph G {
+        rankdir=LR;
+        Ready -> StartExperiment;
+        StartExperiment -> StartDemoPhase;
+        StartDemoPhase -> PrepareTrial;
+        PrepareTrial -> StartTrial;
+        StartTrial -> HandleKey;
+        HandleKey -> NextStimulus;
+        NextStimulus -> EndTrial   [label="Sequence done"];
+        NextStimulus -> HandleKey  [label="Sequence not done"];
+        EndTrial -> LogData;l
+        # Nodes labelled _LIKE_THIS_ aren't functions in the experiment.
+        # Instead, they denote logic that depends onn the phase of the task.
+        LogData -> _DEMO_PHASE_;
+        LogData -> _CALIBRATE_PHASE_;
+        LogData -> _MAIN_PHASE_;
+        _DEMO_PHASE_ -> PrepareTrial [label="Error"];
+        _DEMO_PHASE_ -> PrepareCalibration [label="Correct"];
+        _CALIBRATE_PHASE_ -> PrepareTrial [label="Not finished"];
+        _CALIBRATE_PHASE_ -> PrepareMainPhase [label="Finished"];
+        _MAIN_PHASE_ -> StartOffer [label="Not finished"];
+        _MAIN_PHASE_ -> EndExperiment [label="Finished"];
+        PrepareCalibration -> PrepareTrial;
+        PrepareMainPhase -> StartOffer;
+        StartOffer -> PrepareTrial [label="Offer accepted"];
+        StartOffer -> RejectOffer [label="Offer rejected"];
+        RejectOffer -> LogData;
+}

@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Load libraries -->
+        <script src="../libs/jquery.min.js"></script>
+        <script src="../libs/lodash.min.js"></script>
+        <script src="../libs/primate.js"></script>
+        <script src="../libs/svg.min.js"></script>
+        <script src="../libs/bootstrap.min.js"></script>
+        <link href="../libs/bootstrap.min.css" rel="stylesheet"/>
+        <!-- Load our code -->
+        <link  href="style/main.css" rel="stylesheet"/>
+        <script src="js/utils.js"></script>
+        <script src="js/main.js"></script>
+    </head>
+
+    <body>
+        <div id="gorilla">
+
+            <div id="start">
+                <h2>Catch Task</h2>
+                <p>
+                    In this task, your goal is to catch the green balls
+                    by dispensing them from the machines above and catching them.
+                </p>
+                <p>
+                    Press SPACE to continue.
+                </p>
+            </div>
+            <div id="instructions">
+                <p>
+                    Pay attention to the moving dots shown at the start of each round.<br>
+                    If most of the dots go left, only the left machine is plugged in.<br>
+                    If most go right, only the right machine is plugged in.<br>
+                    Press the Left or Right arrow keys on your keyboard
+                    try to activate the correct machine
+                    and to place your hand to catch the ball.
+                </p>
+                <p>
+                    The machines don't always work properly.<br>
+                    In one machine, 75% of the balls are green. This machine works 75% of the time.<br>
+                    In the other, only 25% are green. This machine works 25% of the time.
+                    If you press the correct button (for the machine that is plugged in),
+                    and the machine works on that round, you can catch the ball as it comes out.
+                    If you press the wrong button, or the machine doesn't work, nothing happens.
+                </p>
+                <p>
+                    You score one point for every green ball you catch.
+                    The more points you score, the larger your bonus payment will be.
+                    There will be 50 rounds in total.
+                </p>
+                <p>
+                    Press SPACE to start.
+                </p>
+            </div>
+
+            <p id="score">Score: <span id="score-points">0</span> points</p>
+            <div class="stimuli" id="ground"></div>
+            <img class="stimuli" id="hand" alt="" src="stimuli/hand.png"/>
+            <div class="stimuli" id="ball"></div>
+            <div class="left stimuli occluder" id="left_occluder"></div>
+            <div class="right stimuli occluder" id="right_occluder"></div>
+            <img class="left stimuli urn" id="left_urn" alt="" src="stimuli/green5.png"/>
+            <img class="right stimuli urn" id="right_urn" alt="" src="stimuli/green15.png"/>
+            <p id="fix" class="stimuli">+</p>
+            <p id="feedback">No change</p>
+            <svg id="target" class="stimuli target"> </svg>
+            <div id="btn-left" class="resp-btn">L</div>
+            <div id="btn-right" class="resp-btn">R</div>
+
+        </div>
+    </body>
+</html>
