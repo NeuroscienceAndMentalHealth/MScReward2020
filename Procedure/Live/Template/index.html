@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Load libraries -->
+        <script src="../libs/jquery.min.js"></script>
+        <!-- <script src="../libs/lodash.min.js"></script> -->
+        <script src="../libs/bootstrap.min.js"></script>
+        <link href="../libs/bootstrap.min.css" rel="stylesheet"/>
+        <style>
+          body {
+            font-size: 14pt;
+          }
+          .content{
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 20px;
+            padding-right: 20px;
+          }
+
+          input[type=checkbox]
+          {
+            -ms-transform: scale(1.5); /* IE */
+            -moz-transform: scale(1.5); /* FF */
+            -webkit-transform: scale(1.5); /* Safari and Chrome */
+            -o-transform: scale(1.5); /* Opera */
+          }
+
+          #important {
+            outline: solid black;
+            outline-offset: .5em;
+          }
+
+        </style>
+        <script>
+          $(document).ready(ready);
+          let info = {};
+          function ready(){
+            let subject_nr = info.subject_nr = Math.round(Math.random()*1000000000);
+            localStorage['subject_nr'] = subject_nr;
+            const url = new URL(window.location);
+            const par_names = ['PROLIFIC_PID', 'STUDY_ID', 'SESSION_ID'];
+            par_names.map( k => {
+              let v = url.searchParams.get(k);
+              info[k] = v;
+              localStorage[k] = v;
+            });
+            $('input[type="checkbox"]').get().map( box => box.checked=false );
+            $('input[type="checkbox"]').change(check_checked);
+            $('#start-btn').hide().click(start);
+          }
+
+          function check_checked(){
+            let are_checked = $('input[type="checkbox"]').get().map( box => box.checked );
+            let ok = true;
+            for (let i = 0; i < are_checked.length; i++) {
+              if (are_checked[i] == false) {
+                $('#start-btn').hide();
+                ok = false;
+                break
+              }
+            }
+            if(ok){
+              $('#start-btn').show();
+              window.scrollTo(0,document.body.scrollHeight);
+            }
+          }
+
+          function start(){
+            info['time'] = Date.now();
+            $.ajax({
+              type: 'POST',
+              url: './start.php',
+              data: JSON.stringify(info),
+              success: next
+            });
+          }
+          function next(){
+            window.location = './experiment.html'
+          }
+        </script>
+    </head>
+    <body>
+        <div class="content">
+
+
+
+            <h1>Participant Information Page</h1>
+
+            <p>
+                The study you're about to take part in
+                is part of a research project by researchers
+                at University College London (UCL).
+                Before you start, it's important that you
+                have access to some information about what you'll be doing
+                and what will happen to your data.
+            </p>
+
+            <hr/>
+
+            <div class="table"><!-- Does nothing -->
+                <div class="row">
+                    <p class="col-6">Study Title:</p>
+                    <p class="col-6">Judgement and Decision-Making</p>
+                </div>
+
+                <div class="row">
+                    <p class="col-6">Researcher:</p>
+                    <p class="col-6">Dr Eoin Travers<br><code>e.travers@ucl.ac.uk</code></p>
+                </div>
+
+                <div class="row">
+                    <p class="col-6">Pricipal Researcher:</p>
+                    <p class="col-6">Prof Jonathan Roiser<br><code>j.roiser@ucl.ac.uk</code></p>
+                </div>
+
+                <div class="row">
+                    <p class="col-6">UCL Research Ethics Committee Approval ID:</p>
+                    <p class="col-6">15253/001</p>
+                </div>
+
+                <div class="row">
+                    <p class="col-6">Deartment:</p>
+                    <p class="col-6">UCL Institute of Cognitive Neuroscience</p>
+                </div>
+
+            </div>
+
+            <hr>
+
+            <h2>Invitation to Participate</h2>
+            <p>
+                You are being invited to take part in a research
+                project. Before you decide it is important for you to
+                understand why the research is being done and what
+                participation will involve. Please take time to read
+                the following information carefully and discuss it
+                with others if you wish. You may contact us if there
+                is anything that is not clear or if you would like
+                more information. Take time to decide whether or not
+                you wish to take part. Thank you for reading this.
+            </p>
+            <div id="important">
+                <h2>What is the project’s purpose?</h2>
+                <p>
+                    This project aims to understand how people weigh
+                    up different kinds of information when making
+                    decisions. In the task, you will be asked to make
+                    90 quick gambling decisions, based on some
+                    information that is shown on-screen. You will
+                    receive a small bonus payment depending on how
+                    well you do.
+                </p>
+                <p>
+                    This study should take less than 10 minutes to complete.
+                </p>
+            </div>
+
+            <h2>Do I have to take part?</h2>
+            <p>
+                It is up to you to decide whether or not to take part.
+                You should only participate if you wish to; while we
+                would encourage you to participate, we would emphasise
+                that not choosing to take part will not disadvantage
+                you in any way. If you decide to do so, you will be
+                asked to complete an online consent procedure, but you
+                are still free to withdraw at any point, without
+                giving a reason.
+            </p>
+
+
+            <h2>What will happen to me if I take part?</h2>
+            <p>
+                If you decide to take part, you will be asked to
+                complete one testing session at home using an online
+                platform. This session will last approximately 10
+                minutes in total in which you will be asked to
+                complete some short questionnaires.
+            </p>
+            <p>
+                You will receive compensation for your time in this
+                study at a rate of £7.50 per hour.
+            </p>
+
+            <h2>What are the possible disadvantages and risks of taking part?</h2>
+            <p>
+                There are no known risks from completing questionnaires online.
+            </p>
+
+            <h2>What are the possible benefits of taking part?</h2>
+            <p>
+                There are no direct benefits from this study for you
+                from participating; however, we hope that you enjoy
+                participating and find the research interesting.
+            </p>
+
+            <h2>What if something goes wrong?</h2>
+            <p>
+                Should you come to any harm as a result of your
+                participation in this study, the University College
+                London/University College Hospital no-fault
+                compensation scheme is in place. If you wish to make a
+                complaint, please contact the Principal Investigator
+                (Jonathan Roiser; j.roiser@ucl.ac.uk) in the first
+                instance. You are also able to complain formally to
+                the Chair of the UCL Research Ethics Committee
+                (ethics@ucl.ac.uk).
+            </p>
+
+            <h2>Will my taking part in this project be kept confidential?</h2>
+            <p>
+                All the information that we collect about you during
+                the course of the research will be kept strictly
+                confidential. You will not be able to be identified in
+                any ensuing reports or publications.
+            </p>
+
+            <h2>Limits to confidentiality</h2>
+            <p>
+                Confidentiality will be respected unless there are
+                compelling and legitimate reasons for this to be
+                breached. If this was the case we would inform you of
+                any decisions that might limit your confidentiality.
+            </p>
+
+            <h2>What will happen to the results of the research project?</h2>
+            <p>
+                The results of this study will be published in
+                scientific journals or presented at conferences. If
+                you are interested in receiving a summary of the
+                results at the end of the experiment, please email the
+                researcher and we will send a copy to you. You will
+                not be identified in any report or publication.
+            </p>
+            <p>
+                Your data may be stored indefinitely, and shared with
+                others outside the research group for the purposes of
+                further scientific research. The data you provide
+                through participating in the study may be archived
+                online as Open Data following publication of any
+                resulting papers, in anonymous form. “Open Data” means
+                that anyone with an internet connection could download
+                it. Any data that could identify you personally will
+                be removed before online archiving.
+            </p>
+            <p>
+                Any personal data you provide will be kept securely,
+                and would not be included in any data shared online or
+                with other research groups. We will delete your
+                personal data when it is no longer required,
+                immediately after the experiment.
+            </p>
+
+            <h2>Local Data Protection Privacy Notice</h2>
+            <p>
+                Notice: The data controller for this project will be
+                University College London (UCL). The UCL Data
+                Protection Office provides oversight of UCL activities
+                involving the processing of personal data, and can be
+                contacted at data-protection@ucl.ac.uk. UCL’s Data
+                Protection Officer can also be contacted at
+                data-protection@ucl.ac.uk.
+            </p>
+            <p>
+                Your personal data will be processed for the purposes
+                outlined in this notice.
+            </p>
+            <p>
+                The legal basis used to process your personal data
+                will be for performance of a task in the public
+                interest.
+            </p>
+            <p>
+                The legal basis used to process your ‘special
+                category’ (sensitive) personal data will be for
+                scientific and historical research or statistical
+                purposes.
+            </p>
+            <p>
+                Your personal data will be processed for as long as it
+                is required, typically until the end of the
+                experiment. If we are able to anonymise or
+                pseudonymise the personal data you provide we will
+                undertake this, and will endeavour to minimise the
+                processing of personal data wherever possible.
+            </p>
+            <p>
+                If you are concerned about how your personal data is
+                being processed, please contact UCL in the first
+                instance at data-protection@ucl.ac.uk. If you remain
+                unsatisfied you may wish to contact the Information
+                Commissioner’s Office (ICO). Contact details, and
+                details of data subject rights, are available on the
+                ICO website at:
+                https://ico.org.uk/for-organisations/data-protection-reform/overview-of-the-gdpr/individuals-rights/
+            </p>
+
+            <h2>Who is organising and funding the research?</h2>
+            <p>
+                This research is being organised by the Neuroscience
+                and Mental Health Group at the UCL Institute of
+                Cognitive Neuroscience and is being funded by the
+                Medical Research Council.
+            </p>
+
+            <h2>Contact for further information</h2>
+            <p>
+                Thank you for reading this information sheet. If you
+                choose to take part, you will be given copies of this
+                information sheet and the signed consent form for your
+                records. For further information, please contact:
+                Dr Eoin Travers
+                (Institute of Cognitive Neuroscience, 17 Queen Square, London, WC1N 3AZ;
+                <code>e.travers@ucl.ac.uk</code>).
+            </p>
+            <p>
+                Please discuss the information above with others if you wish or ask us if there is anything that is not clear or if you would like more information. It is up to you to decide whether to take part or not; choosing not to take part will not disadvantage you in any way. If you do decide to take part you are still free to withdraw at any time and without giving a reason.
+            </p>
+            <p>
+                Thank you for reading this information sheet and for considering participating in this research study.
+            </p>
+
+            <hr/>
+
+            <h1>Consent Form</h1>
+            <p>
+                Once you're happy with the information above,
+                please complete this form to consent
+                to taking part in this study.
+            </p>
+            <!-- Start tickboxes -->
+            <style>
+              .consent{display: flex;}
+              .consent > p {
+                padding-right: 20px;
+              }
+            </style>
+
+            <div class="consent">
+                <p><input id="check1" type="checkbox"/></p>
+                <p>I confirm that I understand that by ticking each box below I am consenting to this part of the study. I understand that it will be assumed that unticked boxes mean that I DO NOT consent to that part. I understand that by not giving consent for any one element I may be deemed ineligible for the study.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check2" type="checkbox"/></p>
+                <p>I confirm that I understand that by ticking each box below I am consenting to this part of the study. I understand that it will be assumed that unticked boxes mean that I DO NOT consent to that part. I understand that by not giving consent for any one element I may be deemed ineligible for the study.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check3" type="checkbox"/></p>
+                <p>I confirm that I have read and understood the Information Sheet for the above study. I have had an opportunity to consider the information and what will be expected of me.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check4" type="checkbox"/></p>
+                <p>I consent to participate in the study. I understand that any personal information provided (for example username and IP address) will be used for the purposes explained to me. I understand that according to data protection legislation, ‘public task’ will be the lawful basis for processing.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check5" type="checkbox"/></p>
+                <p>I understand that all personal information will remain confidential and that all efforts will be made to ensure I cannot be identified (except as required by law). I understand that my data will be stored either anonymously or pseudonymously, and securely, and that it will not be possible to identify me in any publications.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check6" type="checkbox"/></p>
+                <p>I understand that my personal information may be subject to review by responsible individuals from the University for monitoring and audit purposes.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check7" type="checkbox"/></p>
+                <p>I understand the direct/indirect benefits and risks of participating.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check8" type="checkbox"/></p>
+                <p>I understand that I will be asked questions about the current COVID-19 situation in this experiment</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check9" type="checkbox"/></p>
+                <p>I understand that if I choose to withdraw, I will only be compensated for the portion of time spent in the study.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check10" type="checkbox"/></p>
+                <p>I agree that my anonymised data may be used by others for future research (no-one will be able to identify you when this data is shared).</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check11" type="checkbox"/></p>
+                <p>I confirm that: a) I understand the exclusion criteria as detailed in the Information Sheet and explained to me by the researcher; and b) I do not fall under the exclusion criteria.</p>
+            </div>
+
+
+            <div class="consent">
+                <p><input id="check12" type="checkbox"/></p>
+                <p>I agree to participate in this study.</p>
+            </div>
+
+            <p><code>Tick all boxes to proceed.</code></p>
+
+            <button id="start-btn" class="btn btn-primary">Start</button>
+        </div>
+    </body>
+</html>
