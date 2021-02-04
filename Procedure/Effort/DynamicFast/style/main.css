@@ -1,0 +1,149 @@
+
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+html, body {
+    margin: 0;
+    height: 100%;
+    /* overflow: hidden */
+}
+
+#gorilla {
+    /* Everything is inside this, so these rules apply to every element */
+    display: none;     /* Hide everything until we're ready to show it */
+    font-size: 18pt;
+}
+
+.instructions {
+    position: absolute;
+    left: 50vw;
+    /* top: 20vh; */
+    /* bottom: 45vh;               /\*Just above buttons*\/ */
+    /* transform: translate(-50%, 0%); */
+    top: 50vh;
+    transform: translate(-50%, -50%);
+    /* font-size: 2em; */
+    text-align: center;
+    width: 100%;
+    max-width: 120vh;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 2em;
+    padding-right: 2em;
+}
+
+.instructions > * {
+    position: relative;
+}
+
+#overlay {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    background: #FFFFFFCC;
+}
+
+#prompt, #feedback {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    transform: translate(-50%, -50%);
+}
+
+.target{
+    position: absolute;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    top: 25vh;
+    left: 50vw;
+    font-size: 40pt;
+}
+/*
+  We will set this in JavaScript instead
+  so it can be changed throughout the task
+. */
+/* .animated{ */
+/*     transition: top linear 3s, left linear .25s; */
+/* } */
+.target.go {
+    top: 67vh !important;
+}
+.left {
+    left: 40vw;
+}
+.right {
+    left: 60vw;
+}
+
+.resp-btn {
+    position: absolute;
+    top: 67vh;
+    padding: 15px 25px;
+    font-size: 24pt;
+    text-align: center;
+    outline: none;
+    color: #000;
+    background-color: #DDD;
+    border: solid white;
+    border-radius: 15px;
+    margin-top: 2px;
+    box-shadow: 0 9px #999;
+    transform: translate(-50%, 0px);
+}
+
+/* .resp-btn:active, */
+.resp-btn.active {
+    background-color: #BBB ;
+    box-shadow: 0 5px #777;
+    transform: translate(-50%, 4px);
+}
+
+.red {
+    color: red;
+}
+
+.green {
+    color: green;
+}
+
+/* Feedback pots at bottom */
+.pot {
+    position: absolute;
+    bottom: 0;
+    height: 33vh;
+    width: 10vw;
+    transform: translate(-50%, 0px);
+    /* border: solid; */
+    display: flex;
+    flex-direction: column-reverse;
+}
+.pot > p {
+    /* margin: 0; */
+    margin: -.3vh;
+    padding: 0;
+    text-align: center;
+    font-size: 2vh;
+    font-weight: bold;
+}
+#pot-middle {
+    left: 50vw;
+}
+
+.occluder {
+    background: black;
+    /* background: #EEEEEE; */
+    position: absolute;
+    width: 100vw;
+}
+
+#top-occluder {
+    top: 0;
+    height: 33vh;
+}
+
+#bottom-occluder {
+    bottom: 0;
+    height: 33vh;
+}

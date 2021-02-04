@@ -14,6 +14,8 @@ function bind_to_key(func, key){
             let k = (typeof e.which == "number") ? e.which : e.keyCode;
             if(k == key){
                 func(e);
+            } else {
+                bind_to_key(func, key);
             }
         });
 }
@@ -162,6 +164,10 @@ function median(array){
 //             x => _.fill(Array(x[1]), x[0])));
 //     }
 // };
+
+function copy_object(obj){
+    return JSON.parse(JSON.stringify(obj));
+}
 
 
 function select_everything(parent='#gorilla'){

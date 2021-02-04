@@ -35,13 +35,18 @@ html, body {
     position: relative;
 }
 
-#target{
+#target, #message{
     position: absolute;
     text-align: center;
     transform: translate(-50%, -50%);
     top: 50vh;
     left: 50vw;
+}
+#target {
     font-size: 40pt;
+}
+#message {
+    font-size: 20pt;
 }
 
 .resp-btn {

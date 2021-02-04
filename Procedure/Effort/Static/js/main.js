@@ -17,12 +17,13 @@ const end_url = 'https://app.prolific.co/submissions/complete?cc=738CFA78';
 let globals = {
     resp_keys: [70, 74], // F, J
     offer_keys: [89, 78], // Y, N
-    key_is_odd: {70: true, 74: false}, // Key mapping
+    key_is_odd: null, // {70: true, 74: false}
     difficulties: [20, 40, 60, 80],
     n_switches: [1, 2, 3, 4, 5, 6, 7, 8],
     rewards: [1, 2, 3, 4], // Pennies
     difficulty_to_switches: {20: [1, 2], 40: [3, 4], 60: [5, 6], 80: [7, 8]},
     feedback_time: 600,
+    final_feedback_time: 1600, // Feedback at end of trial
     fix_time: 1000,
     reject_time: 2500,
     iti: 500,
@@ -47,7 +48,7 @@ let state = {
     t_end_trial: null,
     t_offer: null,
     t_decision: null,
-    odd_right: null, // Should be randomised
+    odd_right: null, // Manipulated between subjects
     phase: null,    // demo, calibration, or main
     n_trials: null, // Depends on the phase
     max_rt: 10e+9,  // Ditto
@@ -67,7 +68,8 @@ let state = {
 
 let phases = {
     demo: {n_trials: 1},
-    calibration: {n_trials: 32},
+    calibration: {n_trials: 4},
+    // calibration: {n_trials: 32},
     main: {n_trials: 64}
 };
 
@@ -84,8 +86,7 @@ function Ready(){
     // If you need to do any logic before begining, put it here.
     console.log('Ready!');
     $('#gorilla').children().hide();
-    // $('#title').text('Your subject number is ' + state.subject_nr );
-    primate.mute();
+    // primate.mute();
     // Hide everything we don't want to see yet
     on_resize();  // Check window size now
     $( window ).resize(_.debounce(on_resize, 100)); // And every time it changes
@@ -99,6 +100,22 @@ function Ready(){
 
 function StartExperiment(){
     $('#start').show();
+    state.odd_right = primate.manipulation('odd_right', flip());
+    if(state.odd_right){
+        primate.say('Odd right');
+        $('#key-odd').text('J');
+        $('#key-even').text('F');
+        $('#btn-right').text('Odd');
+        $('#btn-left').text('Even');
+        globals.key_is_odd = {74: true, 70: false};
+    } else {
+        primate.say('Odd left');
+        $('#key-odd').text('F');
+        $('#key-even').text('J');
+        $('#btn-left').text('Odd');
+        $('#btn-right').text('Even');
+        globals.key_is_odd = {70: true, 74: false};
+    }
     bind_to_key(PrepareDemoPhase, 32);
     // bind_to_key(PrepareCalibrationPhase, 32);
     // simulate_calibration();
@@ -110,13 +127,7 @@ function PrepareDemoPhase(){
     let phase_info = phases[state.phase];
     state.n_trials = phase_info.n_trials;
     state.max_rt = 10e+10;
-    if(state.odd_right){
-        $('#key-odd').text('J');
-        $('#key-even').text('F');
-    } else {
-        $('#key-odd').text('F');
-        $('#key-even').text('J');
-    }
+    setup_key_animation();
     $('#start').hide();
     $('#demo-instructions, .resp-btn').show();
     bind_to_key(PrepareTrial, 32);
@@ -128,13 +139,16 @@ function PrepareCalibrationPhase(){
     let phase_info = phases[state.phase];
     state.n_trials = phase_info.n_trials;
     // Generate 32 trials (8 n_switches × 4 reps)
-    let n_switch_list = repeat(globals.n_switches, globals.n_calibration_reps);
-    let design = n_switch_list.map( n => ({n_switches: n}) );
-    globals.design = _.shuffle(design);
+    // let n_switch_list = repeat(globals.n_switches, globals.n_calibration_reps);
+    // let design = n_switch_list.map( n => ({n_switches: n}) );
+    // globals.design = _.shuffle(design);
+    // Alternatively, let's just do four practice trials, hard-coded, and see what happens!
+    let ns = [2, 4, 6, 8];
+    globals.design = ns.map( n => ({n_switches: n}) );
     $('#gorilla').children().hide();
     $('#calibration-instructions, .resp-btn').show();
     state.trial_nr = 0;
-    bind_to_key(PrepareTrial, 32);
+    bind_to_key(PreTrial, 32);
 }
 
 
@@ -174,9 +188,10 @@ function StartOffer(){
     state.reward = trial_design.reward;
     state.n_switches = trial_design.n_switches;
     state.difficulty = trial_design.difficulty;
-    $('.instructions').hide();
     $('#reward-value').text(state.reward);
     $('#difficulty-value').text(state.difficulty);
+    $('#round-nr').text(state.trial_nr + 1);
+    $('.instructions, #message').hide();
     $('#offer-instructions').show();
     $(document).on('keydown', HandleOffer);
 }
@@ -202,9 +217,16 @@ function RejectOffer(){
     setTimeout(LogData, globals.reject_time - globals.iti);
 }
 
+function PreTrial(){
+    // Only used in training/calibration phase
+    $('.instructions').hide();
+    $('#message').removeClass('red green').html('Press <code>SPACE</code> to continue').show();
+    bind_to_key(PrepareTrial, 32);
+}
+
 function PrepareTrial(){
     // Prepare stimuli and show fixation
-    $('.instructions, #target').hide();
+    $('.instructions, #target, #message').hide();
     $('body').css('overflow', 'hidden');
     let seq;
     if(state.phase == 'demo'){
@@ -219,7 +241,7 @@ function PrepareTrial(){
     globals.sequence = _.reverse(seq.slice()); // Reverse so we can use .pop();
     state.sequence = seq;
     state.response_keys = [];
-    state.stim_times = [];
+    state.stim_times = [0];
     state.response_times = [];
     state.n_errors = 0;
     setup_key_animation();
@@ -283,7 +305,29 @@ function EndTrial(){
     console.log('EndTrial');
     $(document).off('keydown');
     $('#target').hide();
-    LogData();
+    // Feedback
+    if(state.phase != 'demo'){
+        let feedback, colour;
+        if(state.n_errors > 1){
+            // 0 or 1 errors are OK
+            feedback = 'You made too many mistakes on that round, sorry.';
+            colour = 'red';
+        } else {
+            colour = 'green';
+            if(state.phase == 'main'){
+                feedback = `You won ${state.reward}p.`;
+            } else {
+                // Calibration phase
+                feedback = 'Nice job.';
+            }
+        }
+        let err = state.n_errors;
+        let reward = state.reward;
+        $('#message').removeClass('red green').text(feedback).addClass(colour).show();
+        setTimeout( LogData, globals.final_feedback_time );
+    } else {
+        LogData();
+    }
 }
 
 function OutOfTime(){
@@ -314,12 +358,12 @@ function LogData(){
         }
     }
     if(state.phase == 'calibration'){
-        console.log('???Should there be error feedback here???');
+        //console.log('???Should there be error feedback here???');
         globals.trial_history.push(state);
         if(state.trial_nr >= state.n_trials){
             setTimeout( PrepareMainPhase, globals.iti);
         } else {
-            setTimeout(PrepareTrial, globals.iti);
+            setTimeout( PreTrial, globals.iti);
         }
     }
     if(state.phase == 'main'){
@@ -334,7 +378,7 @@ function LogData(){
 function EndExperiment(){
     $('#end').show();
     // Redirect in 1 second (if not running on Gorilla)
-    setTimeout( e => primate.finish(end_url), 1000);
+    setTimeout( e => primate.finish(end_url), 100);
 }
 
 // // // // // // // //

@@ -1,0 +1,109 @@
+
+/* static/main.css
+
+Use this file to set the default styling of the elements in our experiment.
+You can use javascript to interactively change these later.
+*/
+html, body {
+    margin: 0;
+    height: 100%;
+    /* overflow: hidden */
+}
+
+#gorilla {
+    /* Everything is inside this, so these rules apply to every element */
+    display: none;     /* Hide everything until we're ready to show it */
+    font-size: 18pt;
+}
+
+.instructions {
+    position: absolute;
+    left: 50vw;
+    /* top: 20vh; */
+    /* bottom: 45vh;               /\*Just above buttons*\/ */
+    /* transform: translate(-50%, 0%); */
+    top: 50vh;
+    transform: translate(-50%, -50%);
+    /* font-size: 2em; */
+    text-align: center;
+    width: 100%;
+    max-width: 120vh;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 2em;
+    padding-right: 2em;
+}
+
+.instructions > * {
+    position: relative;
+}
+
+#overlay {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    background: #FFFFFFCC;
+}
+
+#prompt, #feedback {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    transform: translate(-50%, -50%);
+}
+
+#target, #message{
+    position: absolute;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    top: 50vh;
+    left: 50vw;
+}
+#target {
+    font-size: 40pt;
+}
+#message {
+    font-size: 20pt;
+}
+
+.left {
+    left: 40vw;
+}
+.right {
+    left: 60vw;
+}
+
+.resp-btn {
+    position: absolute;
+    top: 67vh;
+    padding: 15px 25px;
+    font-size: 24pt;
+    text-align: center;
+    /* cursor: pointer; */
+    outline: none;
+    color: #000;
+    background-color: #DDD;
+    border: solid white;
+    border-radius: 15px;
+    margin-top: 2px;
+    box-shadow: 0 9px #999;
+    transform: translate(-50%, 0px);
+}
+
+/* .resp-btn:active, */
+.resp-btn.active {
+    background-color: #BBB ;
+    box-shadow: 0 5px #777;
+    transform: translate(-50%, 4px);
+}
+
+.red {
+    color: red;
+}
+
+.green {
+    color: green;
+}
+.lined {
+    text-decoration: underline;
+}

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <!-- Play nice on mobile screens -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Libraries already loaded by Gorilla -->
+        <script src="../../libs/jquery.min.js"></script>
+        <script src="../../libs/bootstrap.min.js"></script>
+        <link href="../../libs/bootstrap.min.css" rel="stylesheet"/>
+        <!-- Our libraries -->
+        <script src="../../libs/lodash.min.js"></script>
+        <script src="../../libs/primate.js"></script>
+        <!-- Our code -->
+        <link  href="style/main.css" rel="stylesheet"/>
+        <script src="js/utils.js"></script>
+        <script src="js/main.js"></script>
+    </head>
+
+    <body>
+        <div id="gorilla">
+
+            <!-- <p id="prompt">Press SPACE to continue</p> -->
+            <p id="message" class="instructions">Message</p>
+            <p id="feedback">You got <span id="ncorrect">X</span>/9 right.</p>
+
+            <p id="tgt0" class="target">1</p>
+            <p id="tgt1" class="target">2</p>
+            <p id="tgt2" class="target">3</p>
+            <p id="tgt3" class="target">4</p>
+            <p id="tgt4" class="target">5</p>
+            <p id="tgt5" class="target">6</p>
+            <p id="tgt6" class="target">7</p>
+            <p id="tgt7" class="target">8</p>
+            <p id="tgt8" class="target">9</p>
+            <p id="tgt9" class="target">9</p>
+
+            <div id="bottom-occluder" class="occluder"></div>
+            <div id="btn-left"  class="resp-btn left">Odd</div>
+            <div id="btn-right" class="resp-btn right">Even</div>
+            <div id="top-occluder"    class="occluder"></div>
+            <div id="pot-left"   class="pot left"> </div>
+            <div id="pot-middle" class="pot"></div>
+            <div id="pot-right"  class="pot right"></div>
+
+
+            <!-- Begin instructions -->
+            <div id="start" class="instructions">
+                <h1 id="title">Sequence Task</h1>
+                <p>
+                    In this task, your job is to indicate, as quickly and as accurately as you can,
+                    whether some digits you see on screen are odd, or even.
+                </p>
+                <p class="secret-button">Press <code>SPACE</code> to begin.</p>
+            </div>
+            <div id="demo-instructions" class="instructions">
+                <p>
+                    On each round in this task,
+                    you'll see a sequence of numbers, between 1 and 9, one at a time.
+                    If the number is <em>odd</em>, press <code id="key-odd"></code>
+                    on your keyboard.
+                    If the number is <em>even</em>, press <code id="key-even"></code>.
+                </p>
+                <p>
+                    Let's start with a demo version of the task.
+                    Try to get all the numbers right, while still being as fast as possible.
+                    If you get a digit wrong, it will turn red. Otherwise, it will turn green.
+                </p>
+                <p>Press <code>SPACE</code> for the first practice round.</p>
+            </div>
+            <div id="calibration-instructions" class="instructions">
+                <p>
+                    Great. You're now ready to practice the real task.
+                </p>
+                <p>
+                    From now on, the sequence of numbers won't be so predictable.
+                    Your task is still to judge if the numbers are odd or even.
+                    Remember to try to get all the numbers right, while still being as fast as possible.
+                </p>
+                <p>Press <code>SPACE</code> to begin.</p>
+            </div>
+            <div id="flexible-instructions" class="instructions">
+                <p id="flexible-txt"></p>
+                <p>Press <code>SPACE</code> to continue.</p>
+            </div>
+            <div id="timeout" class="instructions red">
+                <h1>You ran out of time!</h1>
+                <p>
+                    Try to respond more quickly.
+                </p>
+                <p>Press <code>SPACE</code> to continue.</p>
+            </div>
+
+            <div id="main-instructions" class="instructions">
+                <p>Great. You're now ready to start the main stage of the task.</p>
+                <p>
+                    You may have noticed that some of the sequences were more difficult than others.
+                    At the start of every round from now on,
+                    you'll see the difficulty level of the sequence coming up, from 20% (the easiest) to 80% (the hardest).
+                    You'll also see the reward for successfully completing this sequence, from 1p to 4p.
+                    This amount will be added to your bonus payment if you succesfully complete the sequence.
+                    A sequence is marked as correct if you're correct for at least 9 of the 10 digits in the sequence.
+                </p>
+                <p>
+                    On each round, you're free to choose whether or not you want to
+                    do the sequence and add to your bonus payment (by pressing <code>Y</code>),
+                    or skip it and move on to the next round (by pressing <code>N</code>).
+                </p>
+                <p>There will be 64 rounds in total.</p>
+
+                <p>Press <code>SPACE</code> to start.</p>
+            </div>
+
+            <div id="offer-instructions" class="instructions">
+                <h2 class="lined">Round <span id="round-nr">1</span></h2>
+                <p>
+                    Reward: <span id="reward-value"></span>p<br/>
+                    Difficulty: <span id="difficulty-value"></span>%
+                </p>
+                <p>
+                    Press <code>Y</code> to accept or <code>N</code> to skip.
+                </p>
+            </div>
+
+            <div id="offer-reject" class="instructions">
+                <h2>You skipped that round.</h2>
+            </div>
+
+        </div>
+    </body>
+
+</html>
