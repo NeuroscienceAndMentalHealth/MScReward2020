@@ -21,7 +21,6 @@ let globals = {
     n_blocks: 1,
     target_right: null,
     coherence: null,
-    active_colour: 'green',
     ITI: 400,
     fixation_time: 400,
     stimulus_time: 800,
@@ -80,6 +79,7 @@ function Ready(){
     // If you need to do any logic before begining, put it here.
     ////console.log('Ready!');
     // Hide everything we don't want to see yet
+    primate.populate('#gorilla', 'body', {});
     $('#gorilla').children().hide();
     on_resize();  // Check window size now
     $( window ).resize(_.debounce(on_resize, 100)); // And every time it changes
@@ -111,13 +111,13 @@ function StartBlock(){
     // Set up stimulus directions
     globals.target_right = _.shuffle(repeat([0, 1], globals.n_trials));
     globals.coherence = _.shuffle(repeat([.5, .6, .8], globals.n_trials));
-    let colour = globals.active_colour;
+    $('#ball').css('background-color', globals.green);
     if(state.bias_right){
-        $('#right_urn').attr('src', primate.stimuliURL(colour + '6.png'));
-        $('#left_urn').attr('src', primate.stimuliURL(colour + '2.png'));
+        $('#right_urn').attr('src', primate.stimuliURL('green6.png'));
+        $('#left_urn').attr('src', primate.stimuliURL('green2.png'));
     } else {
-        $('#right_urn').attr('src', primate.stimuliURL(colour + '2.png'));
-        $('#left_urn').attr('src', primate.stimuliURL(colour + '6.png'));
+        $('#right_urn').attr('src', primate.stimuliURL('green2.png'));
+        $('#left_urn').attr('src', primate.stimuliURL('green6.png'));
     }
     $('#instructions, .urn, .occluder').show();
     bind_to_key(PrepareTrial, 32);  // 32 = spacebar
@@ -132,13 +132,14 @@ function PrepareTrial(){
     let target_right = state.target_right = globals.target_right[state.trial_nr];
     let coh = state.coherence = globals.coherence[state.trial_nr];
     let dir = target_right ? 0 : Math.PI; // Direction of dot motion (radians). 0 = right
+    console.log([target_right, coh]);
     // Old reward regime code
     // If bias side selected, p_active = .75. Otherwise, p_active = .25
     // let p_active = (state.bias_right == state.target_right) ? .75 : .25;
     // let target_active = state.target_active = flip(p_active);
     // New way
-    state.reward_rich = globals.reward_trials.rich[state.trial_nr];
-    state.reward_poor = globals.reward_trials.poor[state.trial_nr];
+    state.rich_scheduled = globals.reward_trials.rich.indexOf(state.trial_nr) > -1;
+    state.poor_scheduled = globals.reward_trials.poor.indexOf(state.trial_nr) > -1;
     //
     // Set up a new random dot kinamatogram
     // Parameters:               el,   n, dir, coh, radius, speed, life
@@ -194,17 +195,51 @@ function CheckResponse(e){
         let accuracy = state.accuracy = Number(state.target_right == state.said_right);
         let which = (said_right ? '.right' : '.left');
         $(which).addClass('shaking');
-        // Old reward regime stuff (all moved to ShowFeedback())
+        // Calculate Feedback!
+        let txt = '', colour;
+        let was_rich_side = 1*(state.target_right == state.bias_right);
+        let side = was_rich_side ? 'rich' : 'poor';
+        let was_scheduled = state[side + '_scheduled'];
+        let n_deferred = state[side + '_deferred'];
+        let give_reward = false; // Unless we change our minds below
+        if(state.accuracy){
+            if(n_deferred==0){
+                // No deferred reward
+                if(was_scheduled){
+                    give_reward = true; // Accurate and scheduled
+                }
+            } else {
+                // Deferred reward fromm previous trial
+                give_reward = true;
+            }
+        } else {
+            // Incorrect
+            if(was_scheduled){
+                // Defer reward to future
+                state[side + '_deferred'] += 1;
+            }
+        }
+        if(give_reward) {
+            txt = 'Caught it.<br><b>Great!</b>';
+            colour = '#0E0';
+        } else {
+            txt = "Nothing happened.";
+            colour = 'black';
+        }
+        console.log([state.trial_nr, side, state.accuracy,
+                     was_scheduled, n_deferred, give_reward]);
+        $('#feedback').css('color', colour).html(txt);
+        // Old reward regime stuff
         // let reward = (state.loss_block ?
         //               (accuracy ? 0 : -1) :
         //               (accuracy ? +1 : 0));
         // reward = reward * state.target_active;
         // state.reward = reward;
         // state.score += reward;
+        // Move stuff
         move_hand(said_right);
-        // These timings should be moved to `globals`
-        if(accuracy & state.target_active){
-            setTimeout( () => drop_ball(accuracy), 800);
+        if(give_reward){
+            setTimeout( () => drop_ball(true), 800);
         };
         setTimeout( ShowFeedback, 1100);
     } else {
@@ -266,7 +301,7 @@ function ShowFeedback(){
         txt = "Nothing happened.";
         colour = 'black';
     }
-    console.log([trial_nr, side, was_scheduled, n_deferred, give_reward]);
+    console.log([state.trial_nr, side, state.accuracy, was_scheduled, n_deferred, give_reward]);
     $('#feedback').css('color', colour).html(txt);
     $('#score-points').text(state.score);
     $('#feedback').show();
