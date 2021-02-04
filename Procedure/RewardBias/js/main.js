@@ -15,22 +15,26 @@
 
 // Takes up to 4s per trial
 // 4 * 100 / 60 = 6.66 minutes
-
+const end_url = 'PutProlificURLhereIfRunningStandalone';
 let globals = {
     n_trials: 50, // Per block
     n_blocks: 1,
     target_right: null,
     coherence: null,
-    active_colour: '#0f0',
+    active_colour: 'green',
     ITI: 400,
     fixation_time: 400,
     stimulus_time: 800,
     feedback_time: 800,
-    p_reward: [.25, .75],
     green: '#0f0',
     red: '#f00',
     h_keys: [37, 39], // Left and Right
-    v_keys: [38, 45]  // Up and Down
+    v_keys: [38, 45],  // Up and Down
+    // Reward regime stuff
+    // p_reward: [.25, .75],
+    reward_trials: { rich: null, poor: null},
+    n_rich_reward: 30,
+    n_poor_reward: 10
 };
 
 let state = {
@@ -49,13 +53,18 @@ let state = {
     bias_right: null,
     target_right: null,
     coherence: null,
-    target_active: null,
+    //target_active: null, // From old reward regime
     key: null, // Actual button
     said_right: null, // Response
     accuracy: null,
     rt: null,
     reward: null,
-    score: 0
+    score: 0,
+    // Let's log information about the reward regime
+    rich_scheduled: null,
+    poor_scheduled: null,
+    rich_deferred: 0,
+    poor_deferred: 0
 };
 
 
@@ -70,7 +79,6 @@ $( document ).ready(Ready);
 function Ready(){
     // If you need to do any logic before begining, put it here.
     ////console.log('Ready!');
-    primate.populate('#gorilla', 'body');
     // Hide everything we don't want to see yet
     $('#gorilla').children().hide();
     on_resize();  // Check window size now
@@ -93,14 +101,23 @@ function Ready(){
 function StartBlock(){
     $('#start, #hand, .resp-btn').hide();
     $('#feedback, #stim-window').hide();
+    // Set up reward regime
+    let eligable_trials = _.range(0, 99);
+    let rich_trials = _.sampleSize(eligable_trials, globals.n_rich_reward);
+    eligable_trials = eligable_trials.filter( t => rich_trials.indexOf(t) > -1 );
+    let poor_trials = _.sampleSize(eligable_trials, globals.n_poor_reward);
+    globals.reward_trials.rich = rich_trials.sort((a, b) => a > b);
+    globals.reward_trials.poor = poor_trials.sort((a, b) => a > b);
+    // Set up stimulus directions
     globals.target_right = _.shuffle(repeat([0, 1], globals.n_trials));
     globals.coherence = _.shuffle(repeat([.5, .6, .8], globals.n_trials));
+    let colour = globals.active_colour;
     if(state.bias_right){
-        $('#right_urn').attr('src', primate.stimuliURL(colour + '15.png'));
-        $('#left_urn').attr('src', primate.stimuliURL(colour + '5.png'));
+        $('#right_urn').attr('src', primate.stimuliURL(colour + '6.png'));
+        $('#left_urn').attr('src', primate.stimuliURL(colour + '2.png'));
     } else {
-        $('#right_urn').attr('src', primate.stimuliURL(colour + '5.png'));
-        $('#left_urn').attr('src', primate.stimuliURL(colour + '15.png'));
+        $('#right_urn').attr('src', primate.stimuliURL(colour + '2.png'));
+        $('#left_urn').attr('src', primate.stimuliURL(colour + '6.png'));
     }
     $('#instructions, .urn, .occluder').show();
     bind_to_key(PrepareTrial, 32);  // 32 = spacebar
@@ -114,18 +131,23 @@ function PrepareTrial(){
     // This syntax is an alternative to using .pop();
     let target_right = state.target_right = globals.target_right[state.trial_nr];
     let coh = state.coherence = globals.coherence[state.trial_nr];
-    // If bias side selected, p_active = .75. Otherwise, p_active = .25
-    let p_active = (state.bias_right == state.target_right) ? .75 : .25;
-    let target_active = state.target_active = flip(p_active);
     let dir = target_right ? 0 : Math.PI; // Direction of dot motion (radians). 0 = right
+    // Old reward regime code
+    // If bias side selected, p_active = .75. Otherwise, p_active = .25
+    // let p_active = (state.bias_right == state.target_right) ? .75 : .25;
+    // let target_active = state.target_active = flip(p_active);
+    // New way
+    state.reward_rich = globals.reward_trials.rich[state.trial_nr];
+    state.reward_poor = globals.reward_trials.poor[state.trial_nr];
+    //
     // Set up a new random dot kinamatogram
     // Parameters:               el,   n, dir, coh, radius, speed, life
     globals.rdk = new RDK('#target', 100, dir, coh, 4, .5, 500);
     // What colour should the ball be?
     // (Actually grey balls don't fall in this version, so not necessary)
-    let colour = (target_active ? globals.active_colour : 'grey');
-    $('#ball').css('background-color', colour);
-    console.log(`Target right ${target_right}; Active ${target_active}; Coherence ${coh}`);
+    // let colour = (target_active ? globals.active_colour : 'grey');
+    // $('#ball').css('background-color', colour);
+    // console.log(`Target right ${target_right}; Active ${target_active}; Coherence ${coh}`);
     reset_stimuli(target_right); // Put everything back where it should be.
     $('#score, .urn, .occluder, #ground').show();
     setTimeout(ShowFixation, globals.ITI);
@@ -172,12 +194,13 @@ function CheckResponse(e){
         let accuracy = state.accuracy = Number(state.target_right == state.said_right);
         let which = (said_right ? '.right' : '.left');
         $(which).addClass('shaking');
-        let reward = (state.loss_block ?
-                      (accuracy ? 0 : -1) :
-                      (accuracy ? +1 : 0));
-        reward = reward * state.target_active;
-        state.reward = reward;
-        state.score += reward;
+        // Old reward regime stuff (all moved to ShowFeedback())
+        // let reward = (state.loss_block ?
+        //               (accuracy ? 0 : -1) :
+        //               (accuracy ? +1 : 0));
+        // reward = reward * state.target_active;
+        // state.reward = reward;
+        // state.score += reward;
         move_hand(said_right);
         // These timings should be moved to `globals`
         if(accuracy & state.target_active){
@@ -213,16 +236,37 @@ function drop_ball(caught){
 
 
 function ShowFeedback(){
-    let txt = '',
-        rwd = state.reward,
-        colour;
-    if(state.accuracy & state.target_active){
+    let txt = '', colour;
+    let was_rich_side = 1*(state.target_right == state.bias_right);
+    let side = was_rich_side ? 'rich' : 'poor';
+    let was_scheduled = state[side + '_scheduled'];
+    let n_deferred = state[side + '_deferred'];
+    let give_reward = false; // Unless we change our minds below
+    if(state.accuracy){
+        if(n_deferred==0){
+            // No deferred reward
+            if(was_scheduled){
+                give_reward = true; // Accurate and scheduled
+            }
+        } else {
+            // Deferred reward fromm previous trial
+            give_reward = true;
+        }
+    } else {
+        // Incorrect
+        if(was_scheduled){
+            // Defer reward to future
+            state[side + '_deferred'] += 1;
+        }
+    }
+    if(give_reward) {
         txt = 'Caught it.<br><b>Great!</b>';
         colour = '#0E0';
     } else {
         txt = "Nothing happened.";
         colour = 'black';
     }
+    console.log([trial_nr, side, was_scheduled, n_deferred, give_reward]);
     $('#feedback').css('color', colour).html(txt);
     $('#score-points').text(state.score);
     $('#feedback').show();
