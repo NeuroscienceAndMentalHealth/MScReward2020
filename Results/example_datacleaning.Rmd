@@ -26,6 +26,11 @@ mh_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/mh_questions.csv'))
 covid_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/covid.csv'))
 catastrophizing_precovid<-read.csv(paste0(workingdir,'Jade/raw_data/data_exp_9013-v7_questionnaire-ftnd.csv'))
 
+# randomisers_pilot<-demographics_pilot%>%
+#   filter(status=='APPROVED'&participant_id %in% catastrophizing_pilot$Participant.Public.ID)%>%
+#   select(participant_id)%>%
+#   mutate(randomiser=sample(1:length(participant_id)))
+# write.csv(file=paste0(datadir,'randomisers_pilot_pilot.csv'),randomisers_pilot,row.names=FALSE)
 
 randomisers_pilot<-read.csv(file=paste0(datadir,'randomisers_pilot.csv'),row.names=NULL)
 
