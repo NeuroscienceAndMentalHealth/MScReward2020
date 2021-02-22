@@ -1,0 +1,138 @@
+---
+title: "Example questionnaire cleaning"
+output: html_notebook
+---
+
+Load libraries, set wd
+
+```{r}
+workingdir='C:/Users/apike/OneDrive - University College London/Supervision/'
+datadir='C:/Users/apike/OneDrive - University College London/Publications and abstracts/Catastrophising tasks/data/'
+
+library('tidyverse')
+```
+
+
+Load in all data and generate randomizers from demographics data
+```{r}
+demographics_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/prolific_final.csv'))
+
+catastrophizing_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/catastrophizing.csv'))
+phq8_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/phq8.csv'))
+gad7_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/gad7.csv'))
+pswq_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/pswq.csv'))
+stai_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/stai.csv'))
+mh_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/mh_questions.csv'))
+covid_pilot<-read.csv(paste0(workingdir,'Agatha/datacollection2/covid.csv'))
+catastrophizing_precovid<-read.csv(paste0(workingdir,'Jade/raw_data/data_exp_9013-v7_questionnaire-ftnd.csv'))
+
+
+randomisers_pilot<-read.csv(file=paste0(datadir,'randomisers_pilot.csv'),row.names=NULL)
+
+```
+
+Cleans pilot data and binds together
+
+```{r}
+catastrophizing_pilot_clean<-catastrophizing_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  mutate(Response = recode(Response, 'always'=5, 'often' = 4, 'sometimes' = 3, 'rarely' = 2, 'never' = 1))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(total_catastrophizing=sum(Response))
+
+catastrophizing_precovid_clean<-catastrophizing_precovid%>%
+  select(!contains('quantised'))%>%
+  select('Participant.Public.ID'|contains('X'))%>%
+  select(!contains('Experiment')&!contains('index')&!contains('External'))%>%
+  mutate(across(contains('x'),~recode(.,'always'=5, 'often' = 4, 'sometimes' = 3, 'rarely' = 2, 'never' = 1)))%>%
+  rowwise(Participant.Public.ID)%>%
+  summarise(precovid_catastrophizing=sum(c_across(cols=everything())))
+
+#reverse scored items are 2,4,7,8,11,14,15,17,20
+reverse<-c('response-2','response-4','response-7','response-8','response-11','response-14','response-15','response-17','response-20')
+stai_pilot_clean<-stai_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  mutate(Response = recode(Response, 'almost always'=4, 'often' = 3, 'sometimes' = 2, 'almost never' = 1))%>%
+  mutate(Response = ifelse(Question.Key %in% reverse,5-Response,Response))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(total_stai=sum(Response))
+
+gad7_pilot_clean<-gad7_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  filter(!str_detect(Question.Key,'response-9'))%>% #we don't analyse the last question 'how difficult does this make things'
+  mutate(Response = recode(Response, 'nearly every day'=3, 'over half the days' = 2, 'several days' = 1, 'not at all' = 0))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(total_gad7=sum(Response))
+
+phq8_pilot_clean<-phq8_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  mutate(Response = recode(Response, 'nearly every day'=3, 'more than half the days' = 2, 'several days' = 1, 'not at all' = 0))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(total_phq8=sum(Response))
+
+#reverse scored items are response-17, response-3, response-8, response-10, response-11
+reverse<-c('response-17','response-3','response-8','response-10','response-11')
+pswq_pilot_clean<-pswq_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  mutate(Response = ifelse(Question.Key %in% reverse,6-Response,Response))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(total_pswq=sum(Response))
+
+covid_worry_items<-c('response-  1','response-2','response-3','response-5','response-6')
+covid_pilot_clean<-covid_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(covid_worry=sum(as.numeric(as.character(Response[Question.Key %in% covid_worry_items])),na.rm=TRUE),
+            covid_highrisk_self=Response[Question.Key=='response-7'],
+            covid_highrisk_family=Response[Question.Key=='response-8'],
+            covid_impact=Response[Question.Key=='response-9'],
+            covid_handwashing=Response[Question.Key=='response-10'],
+            covid_distancing=Response[Question.Key=='response-13'],
+            employment=Response[Question.Key=='response-17'],
+            household_size=Response[Question.Key=='response-18'])
+
+mh_pilot_clean<-mh_pilot%>%
+  filter(!str_detect(Question.Key,'quantised'))%>%
+  filter(!str_detect(Question.Key,'QUESTIONNAIRE'))%>%
+  select(Participant.Public.ID,Question.Key,Response)%>%
+  group_by(Participant.Public.ID)%>%
+  summarise(diagnosis_general=Response[Question.Key=='diagnosis'],
+            diagnosis_anxdep=Response[Question.Key=='response-5'],
+            medication_general=Response[Question.Key=='response-3'],
+            medication_anxdep=Response[Question.Key=='response-6'])
+
+
+overall_df<-catastrophizing_pilot_clean %>%
+  inner_join(demographics_pilot_clean, by = c('Participant.Public.ID'='participant_id'))%>%
+  inner_join(stai_pilot_clean)%>%
+  inner_join(gad7_pilot_clean)%>%
+  inner_join(phq8_pilot_clean)%>%
+  inner_join(pswq_pilot_clean)%>%
+  inner_join(covid_pilot_clean)%>%
+  inner_join(catastrophizing_precovid_clean)%>%
+  inner_join(mh_pilot_clean)
+
+
+overall_df<-randomisers_pilot%>%
+  inner_join(overall_df,by = c('participant_id'='Participant.Public.ID'))%>%
+  mutate(participant_id=NULL)%>%
+  rename(id=randomiser)%>%
+  arrange(id)
+
+overall_df
+write.csv(file=paste0(datadir,'pilot_data.csv'),overall_df,row.names=FALSE)
+
+
+```
