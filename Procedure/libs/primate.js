@@ -8,7 +8,7 @@
 // See https://gorilla.sc/support/api/gorilla for documentation on the
 // original API. Note that primate.finish() does not work in the same
 // way as gorilla.finish(). See the code below for details.
-
+const VERSION = '0.0.2';
 const primate = (function(){
     function is_gorilla(){
         // To test whether we're running on Gorilla, we just test if
@@ -38,18 +38,18 @@ const primate = (function(){
     function ready(cb){
         say(`Setting '${cb.name}()' to run once page is ready.`);
         if(is_gorilla()){
-            gorilla.ready(cb);
+            gorilla.ready(function(){
+                // If on Gorilla, load the 'body' template now.
+                primate.populate('#gorilla', 'body', {});
+                cb();
+            });
         } else {
             if (document.readyState === 'complete') {
                 // We're already ready
-                primate.populate('#gorilla', 'body', {});
                 cb();
             }
             else {
-                $(document).ready(function(){
-                    primate.populate('#gorilla', 'body', {});
-                    cb();
-                });
+                $(document).ready(cb);
             };
         }
     }
@@ -118,19 +118,30 @@ const primate = (function(){
         return val;
     }
 
+
+    function _deep_copy(object){
+        // (Not exported)
+        return JSON.parse(JSON.stringify(object));
+    }
+
     function metric(results){
+        let copied_results = _deep_copy(results);
         say('Sending these metrics to the server:');
-        console.log(results);
+        say(results);
         if(is_gorilla()){
-            gorilla.metric(results);
+            gorilla.metric(copied_results);
         } else {
-            say('...falling back to AJAX');
-            $.ajax({
-                type: 'POST',
-                url: 'log.php',
-                data: JSON.stringify(results),
-                success: function(res) { say(res); }
-            });
+            // If page is a local file, do nothing
+            if(window.location.protocol == 'file:'){
+                say('Local file: Nowhere to send data');
+            } else {
+                $.ajax({
+                    type: 'POST',
+                    url: 'log.php',
+                    data: JSON.stringify(copied_results),
+                    success: function(res) { say(res); }
+                });
+            }
         }
     }
 
@@ -173,6 +184,10 @@ const primate = (function(){
     }
 
     function populate(element, template, content={}){
+        // Note that if you're running on Gorilla,
+        // the primate.ready() function already calls
+        // > gorilla.populate('#gorilla', 'body', {});
+        // when the page loads.
         if(is_gorilla()){
             say(`Populating ${element} with template '${template}`);
             say(`(Contents: ${content})`);
@@ -240,7 +255,7 @@ const primate = (function(){
         populate : populate,
         populateAndLoad : populateAndLoad,
         finish: finish,
-        version: '0.0.1'
+        version: VERSION
     };
     return exports;
 })();
