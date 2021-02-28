@@ -1,0 +1,90 @@
+---
+title: "02.PreprocessQs"
+author: "Eoin Travers"
+date: "08/02/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+source('src/functions.R')
+# theme_set(theme_classic(base_size = 18))
+theme_set(theme_bw(base_size = 18))
+
+experiment_names = c('Gamble', 'Bandits', 'Gershman', 'Effort', 'RewardBias')
+
+# Get task name for each data file.
+all_file_paths =list.files('data/raw/', '*.csv', full.names = T)
+
+get_file_task = function(fp){
+  if( file.info(fp)$size < 128 ) return('<EMPTY>')
+  df = read.csv(fp, nrows=2)
+  as.character(df$Task.Name[[1]])
+}
+task_df = tibble(
+  fp = all_file_paths,
+  task = map_chr(all_file_paths, get_file_task)
+) %>%
+  filter(task != '<EMPTY>') %>%
+  mutate(
+    type = ifelse(task %in% experiment_names, 'task', 'quest'))
+
+quest_df = filter(task_df, type=='quest')
+# quests = $task %>% unique()
+
+# task_files = map(tasks, function(.task) filter(task_df, task==.task)$fp )
+# names(task_files) = tasks
+
+```
+
+```{r}
+all_dfs = map(quest_df$fp, function(fp){
+  read.csv(fp) %>%
+    filter(Event.Index != 'END OF FILE',
+           Question.Key %in% c('BEGIN QUESTIONNAIRE', 'END QUESTIONNAIRE') == F) %>%
+    select(Task.Name, Participant.Private.ID, UTC.Timestamp, Question.Key, Response) %>%
+    mutate(Response = as.character(Response))
+})
+
+# map(all_dfs, colnames)
+merged_dfs = map_df(all_dfs, ~{.}) %>%
+  filter(Task.Name != 'Consent')
+
+glimpse(merged_dfs)
+```
+
+Can we automatically extract out the 'quantised' versions where they exist?
+
+```{r}
+quantised = merged_dfs %>%
+  filter(str_detect(Question.Key, 'quantised')) %>%
+  group_by(Task.Name, Question.Key) %>%
+  count()
+
+keys_to_remove = quantised$Question.Key %>% str_remove('-quantised')
+
+data = merged_dfs %>% 
+  filter(Question.Key %in% keys_to_remove == F) %>%
+  filter(Question.Key %in% c('response- 20-text', 'response- 20-1')==F) %>%  # Remove free-response
+  mutate(Response = as.numeric(Response))
+  
+# Get the numeric version of each item
+
+```
+
+```{r fig.width=16, fig.height=8}
+data %>%
+  arrange(Question.Key) %>%
+  ggplot(aes(Question.Key, Response, color=factor(Participant.Private.ID), group=Participant.Private.ID)) + 
+  facet_wrap(~Task.Name, scales='free', ncol=3) +
+  geom_path() +
+  theme(axis.text.x = element_blank()) +
+  labs(x='Item', color='Subject ID')
+```
+
+```{r}
+merged_dfs %>%
+  group_by(Task.Name, Question.Key, Response) %>%
+  count()
+```
+

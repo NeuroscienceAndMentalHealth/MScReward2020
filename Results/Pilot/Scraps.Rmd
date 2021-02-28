@@ -1,0 +1,51 @@
+---
+title: "Scraps"
+author: "Eoin Travers"
+date: "28/02/2021"
+output: html_document
+---
+
+
+
+```{r}
+# gamble_subject_models = gamble_data %>%
+#   nest(dfs = -c(subject_nr, type)) %>%
+#   mutate(
+#     coefs = map(dfs, function(df){
+#       glm(chose_risky ~ ev_risky, data = df, family=binomial) %>% broom::tidy()
+#     })) %>%
+#   select(subject_nr, type, coefs) %>% unnest(coefs) %>%
+#   mutate(term = ifelse(term == '(Intercept)', 'Bias', 'Sensitivity'))
+# 
+# gamble_subject_models %>%
+#   select(subject_nr, type, term, estimate) %>%
+#   pivot_wider(names_from=term, values_from=estimate) %>%
+#   ggplot(aes(Bias, Sensitivity)) +
+#   geom_point()
+```
+
+
+
+```{r}
+gershman_data %>%
+  filter(trial_nr > 0) %>%
+  mutate(prev = ifelse(prev_reward < 0, 'Loss', 'Gain')) %>%
+  ggplot(aes(prev, change, group=subject_nr)) +
+  stat_summary(fun.data=mean_se, position = position_dodge(width=.1)) +
+  stat_summary(fun=mean,         position = position_dodge(width=.1), geom='path') +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dashed', xintercept=0) +
+  coord_cartesian(ylim=c(0, 1)) +
+  labs(x='Previous outcome', y='P(Change Response)', color='Subject', fill='Subject')
+```
+
+```{r}
+# ggplot(gershman_data, aes(trial_nr+1, chose_risky, group = subject_nr)) +
+#   geom_hline(linetype='dashed', yintercept=.5) +
+#   # stat_summary(fun.data=mean_se, geom='ribbon', alpha=.5) +
+#   stat_summary(fun=mean, geom='path') +
+#   coord_cartesian(ylim=c(0, 1)) +
+#   scale_x_continuous(breaks=1:10) +
+#   labs(x='Trial', y='P(Risky)', color='Subject', fill='Subject')
+```
+
