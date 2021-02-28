@@ -60,8 +60,14 @@ function Ready(){
     $( window ).resize(_.debounce(on_resize, 100)); // And every time it changes
     state.t_start_experiment = Date.now();
     $('#gorilla, #start').show();
-    $('#start-btn').on('click', StartTrial);
+    $('#more-btn').on('click', MoreInstructions);
 };
+
+function MoreInstructions(){
+    $('#start').hide();
+    $('#start2').show();
+    $('#start-btn').on('click', StartTrial);
+}
 
 function StartTrial(){
     state.t_start_trial = Date.now();
@@ -69,7 +75,7 @@ function StartTrial(){
     // Reset outcome element (red/green balls)
     globals.locations.map( loc => $('#outcome').removeClass(loc));
     $('#outcome').removeClass('foldered');
-    $('#start, #outcome').hide();
+    $('#start, #start2, #outcome').hide();
     $('.options, #folder').show();
     $('#boxes, #score').show();
     $('.options').one('click', GetResponse);

@@ -24,7 +24,7 @@ img.mini {
     font-size: 18pt;
 }
 
-#start > * {
+#start > *, #start2 > * {
     position: relative;
 }
 
@@ -37,8 +37,8 @@ img.mini {
     transform: translate(-50%, -50%);
 }
 
-
-#start, #target, #fix, #feedback, #end {
+/* Should probably just use an .instructions class */
+#start, #start2, #target, #fix, #feedback, #end {
     position: absolute;
     left: 50vw;
     top: 50vh;
@@ -47,7 +47,7 @@ img.mini {
     transform: translate(-50%, -50%);
 }
 
-#start{
+#start, #start2{
     max-width: 120vh;
     padding: 1em;
 }
@@ -127,4 +127,10 @@ img.mini {
 }
 .red {
     color: red;
+}
+
+/* New code to deal with Bootstrap V3 */
+.btn.options {
+    background-color: #23272b !important;
+    border-color: #1d2124 !important;
 }
