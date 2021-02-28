@@ -201,16 +201,16 @@ function CheckResponse(e){
         let side = was_rich_side ? 'rich' : 'poor';
         let was_scheduled = state[side + '_scheduled'];
         let n_deferred = state[side + '_deferred'];
-        let give_reward = false; // Unless we change our minds below
+        state.reward = 0; // Unless we change our minds below
         if(state.accuracy){
             if(n_deferred==0){
                 // No deferred reward
                 if(was_scheduled){
-                    give_reward = true; // Accurate and scheduled
+                    state.reward = 1; // Accurate and scheduled
                 }
             } else {
                 // Deferred reward fromm previous trial
-                give_reward = true;
+                state.reward = 1;
             }
         } else {
             // Incorrect
@@ -219,7 +219,7 @@ function CheckResponse(e){
                 state[side + '_deferred'] += 1;
             }
         }
-        if(give_reward) {
+        if(state.reward) {
             txt = 'Caught it.<br><b>Great!</b>';
             colour = '#0E0';
         } else {
@@ -227,7 +227,7 @@ function CheckResponse(e){
             colour = 'black';
         }
         console.log([state.trial_nr, side, state.accuracy,
-                     was_scheduled, n_deferred, give_reward]);
+                     was_scheduled, n_deferred, state.reward]);
         $('#feedback').css('color', colour).html(txt);
         // Old reward regime stuff
         // let reward = (state.loss_block ?
@@ -238,7 +238,7 @@ function CheckResponse(e){
         // state.score += reward;
         // Move stuff
         move_hand(said_right);
-        if(give_reward){
+        if(state.reward){
             setTimeout( () => drop_ball(true), 800);
         };
         setTimeout( ShowFeedback, 1100);
