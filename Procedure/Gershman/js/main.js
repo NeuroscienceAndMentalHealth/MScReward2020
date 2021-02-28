@@ -20,8 +20,8 @@ let globals = {
     n_blocks: 30,
     n_per_condition: {ss: 6, sr: 8, rs: 8, rr: 8},
     design: null, // Created later
-    block_sd: 100,
-    trial_sd: 16,
+    block_sd: 10,
+    trial_sd: 4,
     labels : {'r' : 'Risky', 's' : 'Safe'},
     current_values: {
         'left': 0, 'right': 0
