@@ -32,8 +32,8 @@ let globals = {
     // Reward regime stuff
     // p_reward: [.25, .75],
     reward_trials: { rich: null, poor: null},
-    n_rich_reward: 30,
-    n_poor_reward: 10
+    n_rich_reward: 15, // of 50
+    n_poor_reward: 5
 };
 
 let state = {
@@ -49,7 +49,6 @@ let state = {
     t_start_trial: null,
     t_response: null,
     loss_block: null,// Default is gain
-    bias_right: null,
     target_right: null,
     coherence: null,
     //target_active: null, // From old reward regime
@@ -95,6 +94,7 @@ function Ready(){
     let bias_right = primate.manipulation('bias_right', flip());
     state.bias_right = bias_right;
     $('#start, #hand, #ground, .urn, .occluder').show();
+    primate.mute();
     bind_to_key(StartBlock, 32);
 };
 
@@ -102,15 +102,32 @@ function StartBlock(){
     $('#start, #hand, .resp-btn').hide();
     $('#feedback, #stim-window').hide();
     // Set up reward regime
-    let eligable_trials = _.range(0, 99);
-    let rich_trials = _.sampleSize(eligable_trials, globals.n_rich_reward);
-    eligable_trials = eligable_trials.filter( t => rich_trials.indexOf(t) > -1 );
-    let poor_trials = _.sampleSize(eligable_trials, globals.n_poor_reward);
-    globals.reward_trials.rich = rich_trials.sort((a, b) => a > b);
-    globals.reward_trials.poor = poor_trials.sort((a, b) => a > b);
-    // Set up stimulus directions
-    globals.target_right = _.shuffle(repeat([0, 1], globals.n_trials));
-    globals.coherence = _.shuffle(repeat([.5, .6, .8], globals.n_trials));
+    let n = globals.n_trials;
+    let all_trials = _.shuffle(_.range(0, n));
+    let rich_trials = all_trials.slice(0, (n / 2));
+    let poor_trials = all_trials.slice((n / 2), n);
+    let rich_rewarded = _.sampleSize(rich_trials, globals.n_rich_reward);
+    let poor_rewarded = _.sampleSize(poor_trials, globals.n_poor_reward);
+    globals.reward_trials.rich = rich_rewarded.sort((a, b) => a > b);
+    globals.reward_trials.poor = poor_rewarded.sort((a, b) => a > b);
+    // Set up stimulus direction and coherence
+    let moving_right_trials = state.bias_right ? rich_trials : poor_trials;
+    let coh_left = _.shuffle(repeat([.5, .6, .8], n / 2));
+    let coh_right = _.shuffle(repeat([.5, .6, .8], n / 2));
+    let target_right = [], coherence = [];
+    for(let t of _.range(0, n)){
+        if(moving_right_trials.indexOf(t) > -1){
+            // This is a rightward trial
+            target_right.push(1);
+            coherence.push(coh_right.pop);
+        } else {
+            target_right.push(0);
+            coherence.push(coh_left.pop);
+        }
+    }
+    globals.target_right = target_right; // 1 or 0, for each trial
+    globals.coherence = coherence;       // Now balanced across directions.
+    // Set up visuals
     $('#ball').css('background-color', globals.green);
     if(state.bias_right){
         $('#right_urn').attr('src', primate.stimuliURL('green6.png'));
@@ -132,7 +149,7 @@ function PrepareTrial(){
     let target_right = state.target_right = globals.target_right[state.trial_nr];
     let coh = state.coherence = globals.coherence[state.trial_nr];
     let dir = target_right ? 0 : Math.PI; // Direction of dot motion (radians). 0 = right
-    console.log([target_right, coh]);
+    // console.log([target_right, coh]);
     // Old reward regime code
     // If bias side selected, p_active = .75. Otherwise, p_active = .25
     // let p_active = (state.bias_right == state.target_right) ? .75 : .25;
@@ -201,22 +218,42 @@ function CheckResponse(e){
         let side = was_rich_side ? 'rich' : 'poor';
         let was_scheduled = state[side + '_scheduled'];
         let n_deferred = state[side + '_deferred'];
+        let debug_info = {
+            rich_scheduled: state.rich_scheduled,
+            poor_scheduled: state.poor_scheduled,
+            rich_deferred: state.rich_deferred,
+            poor_deferred: state.poor_deferred,
+            side: side,
+            accuracy: state.accuracy
+        };
+        // console.table(debug_info);
+        // console.log('Was reward scheduled?', was_scheduled);
+        // console.log('Number of deferred rewards:', n_deferred)
         state.reward = 0; // Unless we change our minds below
         if(state.accuracy){
+            // console.log('Correct response');
             if(n_deferred==0){
                 // No deferred reward
                 if(was_scheduled){
                     state.reward = 1; // Accurate and scheduled
+                    // console.log('Delivering scheduled reward');
+                } else {
+                    // console.log('No reward given');
                 }
             } else {
                 // Deferred reward fromm previous trial
                 state.reward = 1;
+                state[side + '_deferred'] -= 1;
+                // console.log('Delivering deferred reward');
+                // console.log('Decreasing', side + '_deferred', 'to', state[side + '_deferred']);
             }
         } else {
+            // console.log('Incorrect');
             // Incorrect
             if(was_scheduled){
                 // Defer reward to future
                 state[side + '_deferred'] += 1;
+                // console.log('Increasing', side + '_deferred', 'to', state[side + '_deferred']);
             }
         }
         if(state.reward) {
@@ -226,16 +263,10 @@ function CheckResponse(e){
             txt = "Nothing happened.";
             colour = 'black';
         }
-        console.log([state.trial_nr, side, state.accuracy,
-                     was_scheduled, n_deferred, state.reward]);
+        // console.log([state.trial_nr, side, state.accuracy,
+        //              was_scheduled, n_deferred, state.reward]);
         $('#feedback').css('color', colour).html(txt);
-        // Old reward regime stuff
-        // let reward = (state.loss_block ?
-        //               (accuracy ? 0 : -1) :
-        //               (accuracy ? +1 : 0));
-        // reward = reward * state.target_active;
-        // state.reward = reward;
-        // state.score += reward;
+        state.score += state.reward;
         // Move stuff
         move_hand(said_right);
         if(state.reward){
@@ -271,39 +302,6 @@ function drop_ball(caught){
 
 
 function ShowFeedback(){
-    let txt = '', colour;
-    let was_rich_side = 1*(state.target_right == state.bias_right);
-    let side = was_rich_side ? 'rich' : 'poor';
-    let was_scheduled = state[side + '_scheduled'];
-    let n_deferred = state[side + '_deferred'];
-    let give_reward = false; // Unless we change our minds below
-    if(state.accuracy){
-        if(n_deferred==0){
-            // No deferred reward
-            if(was_scheduled){
-                give_reward = true; // Accurate and scheduled
-            }
-        } else {
-            // Deferred reward fromm previous trial
-            give_reward = true;
-        }
-    } else {
-        // Incorrect
-        if(was_scheduled){
-            // Defer reward to future
-            state[side + '_deferred'] += 1;
-        }
-    }
-    if(give_reward) {
-        txt = 'Caught it.<br><b>Great!</b>';
-        colour = '#0E0';
-    } else {
-        txt = "Nothing happened.";
-        colour = 'black';
-    }
-    console.log([state.trial_nr, side, state.accuracy, was_scheduled, n_deferred, give_reward]);
-    $('#feedback').css('color', colour).html(txt);
-    $('#score-points').text(state.score);
     $('#feedback').show();
     setTimeout(LogData, globals.feedback_time);
 }
@@ -460,4 +458,19 @@ function RDK(element, n=100,
         this.start();
     };
     this.prepare();
+}
+
+
+function emulate_responses(side){
+    // Manually trigger a keydown event for either left or right arrow
+    let k = (side == 'left') ? 37 : 39;
+    let e = jQuery.Event("keydown");
+    e.which = k;
+    // attach this to the window so we can run
+    // clearInterval(window['emulation_interval'])
+    // to cancel it.
+    window['emulation_interval'] = setInterval(function(){
+        console.log('Triggering ' + k);
+        $(document).trigger(e);
+    }, 2000);
 }
