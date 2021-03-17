@@ -17,7 +17,7 @@
 // 4 * 100 / 60 = 6.66 minutes
 const end_url = 'PutProlificURLhereIfRunningStandalone';
 let globals = {
-    n_trials: 50, // Per block
+    n_trials: 100, // Per block
     n_blocks: 1,
     target_right: null,
     coherence: null,
@@ -32,8 +32,8 @@ let globals = {
     // Reward regime stuff
     // p_reward: [.25, .75],
     reward_trials: { rich: null, poor: null},
-    n_rich_reward: 15, // of 50
-    n_poor_reward: 5
+    n_rich_reward: 30, // of 100
+    n_poor_reward: 10
 };
 
 let state = {
@@ -119,10 +119,10 @@ function StartBlock(){
         if(moving_right_trials.indexOf(t) > -1){
             // This is a rightward trial
             target_right.push(1);
-            coherence.push(coh_right.pop);
+            coherence.push(coh_right.pop());
         } else {
             target_right.push(0);
-            coherence.push(coh_left.pop);
+            coherence.push(coh_left.pop());
         }
     }
     globals.target_right = target_right; // 1 or 0, for each trial
