@@ -112,8 +112,9 @@ function StartBlock(){
     globals.reward_trials.poor = poor_rewarded.sort((a, b) => a > b);
     // Set up stimulus direction and coherence
     let moving_right_trials = state.bias_right ? rich_trials : poor_trials;
-    let coh_left = _.shuffle(repeat([.5, .6, .8], n / 2));
-    let coh_right = _.shuffle(repeat([.5, .6, .8], n / 2));
+    if(n != 100){ alert('Error: Script assumes 100 trials!'); }
+    let coh_left = _.shuffle(repeat([.5, .6, .8], [16, 17, 17] )); // 50 in total
+    let coh_right = _.shuffle(repeat([.5, .6, .8], [16, 17, 17] ));
     let target_right = [], coherence = [];
     for(let t of _.range(0, n)){
         if(moving_right_trials.indexOf(t) > -1){
