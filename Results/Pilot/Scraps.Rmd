@@ -49,3 +49,65 @@ gershman_data %>%
 #   labs(x='Trial', y='P(Risky)', color='Subject', fill='Subject')
 ```
 
+
+
+
+
+
+## More complicated exploration for Gershman task
+(move to later analysis scripts)
+
+```{r}
+library(lme4)
+glmm_gershman = gershman_data %>%
+  mutate_at(vars(starts_with('kalman')), scale) %>% # z transform
+  glmer(chose_right ~ kalman_value_difference + kalman_sigma_difference + 
+          kalman_weighted_value_difference +
+          # Uncomment for full random effects
+          # ( kalman_value_difference + kalman_sigma_difference + kalman_weighted_value_difference | subject_nr)
+          (1 | subject_nr),
+        data = ., family = binomial)
+summary(glmm_gershman)
+```
+
+```{r}
+glmm_gershman_mf = gershman_data %>%
+  glmer(chose_right ~ -1 + condition + condition:kalman_value_difference + (1 | subject_nr),
+        data = ., family = binomial)
+car::Anova(glmm_gershman_mf)
+```
+
+```{r}
+summary(glmm_gershman_mf)
+```
+
+
+dplyr wizardry
+
+```{r}
+coefs = summary(glmm_gershman_mf) %>% coef() %>%
+  data.frame() %>% rownames_to_column('.term') %>%
+  separate(.term, c('condition', 'term'), sep = ':') %>%
+  mutate(condition = str_remove(condition, 'condition'),
+         term = ifelse(is.na(term), 'Intercept', 'Slope')) %>%
+  rename(b = Estimate, se = Std..Error)
+ggplot(coefs, aes(condition, b, ymin = b - se, ymax = b + se)) +
+  facet_wrap(~term, scales = 'free') +
+  geom_point() + geom_linerange() +
+  coord_flip() +
+  geom_hline(linetype='dashed', yintercept=0) +
+  labs(x = 'Condition', y = 'Estimate')
+```
+
+
+
+Trying stuff out...
+
+Plot Kalman filter inferences for one block
+(mostly to make sure calculation works)
+
+```{r}
+df = filter(gershman_data, subject_nr == gershman_data$subject_nr[[1]])
+block_df = filter(df, block_nr == 13)
+plot_kalman_block(block_df)
+```

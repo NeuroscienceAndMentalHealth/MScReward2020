@@ -15,8 +15,15 @@ library(patchwork)
 # library(lme4) # Maybe
 source('src/functions.R')
 # theme_set(theme_classic(base_size = 18))
-theme_set(theme_bw(base_size = 18))
+theme_set(theme_bw(base_size = 18)) # Set default ggplot theme
+
 mkdir('figures')
+mkdir('data/bonus/')
+
+# Constants
+MEAN_BONUS_PER_TASK = 0.80 # In £
+SD_BONUS_PER_TASK   = 0.40
+DO_SUBJECT_PLOTS = FALSE # Set to TRUE to generate LOADS of plots
 ```
 
 Utilities needed for loading Gorilla data
@@ -72,7 +79,7 @@ effort_data = merge_files(task_files$Effort)
 
 effort_data = effort_data %>%
   select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
-         participant_completion_code, # Prolific
+         prolific = participant_public_id,
          participant_private_id, participant_status, task_name, task_version,
          # Skipping counterbalance information for now
          # Task data
@@ -141,7 +148,6 @@ wide_sequences = cbind(key_columns, wide_sequences)
 glimpse(wide_sequences)
 ```
 
-
 ```{r}
 sequences = wide_sequences %>%
   pivot_longer(cols=matches('[0-9]'),
@@ -202,14 +208,32 @@ effort_data %>%
 
 ## Bonus Payments
 
+We explicitly told participants how much they would receive here,
+so we best stick with it.
+
 ```{r}
 bonus_data = effort_data %>%
   filter(phase=='main', accepted==1, n_errors < 2) %>%
-  mutate(reward = as.numeric(reward))
-bonus_data %>%
-  group_by(subject_nr, participant_completion_code, participant_private_id) %>%
-  summarise(n_complete=n(), sum(reward))
+  mutate(reward = as.numeric(reward) / 100,
+         reward = round(reward, 2))
+
+subj_bonus_data = bonus_data %>%
+  group_by(prolific) %>%
+  summarise(reward = sum(reward))
+
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
 ```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
+
 ```{r}
 effort_data %>%
   filter(phase=='main') %>%
@@ -217,7 +241,8 @@ effort_data %>%
   summarise(accepted = mean(accepted), .groups='drop') %>%
   ggplot(aes(reward, scales::percent(difficulty/100), fill=accepted)) +
   geom_tile() +
-  scale_fill_gradient2(low='red', mid='white', high='darkgreen',  midpoint=.5) +
+  scale_fill_gradient2(low='red', mid='white', high='darkgreen', 
+                       limits = c(0, 1)) +
   labs(x='Reward', y='Difficulty', fill='P(Accept)',
        title = 'Effort Task: Subject Summaries') +
   coord_equal()
@@ -310,16 +335,19 @@ effort_subject_nrs = unique(effort_data$subject_nr)
 ```
 
 Try one    
+
 ```{r fig.width=12, fig.height=6}
 generate_subject_effort_plot(effort_subject_nr[1], show=T)
 ```
 
 ```{r}
 mkdir('figures/effort/subjects')
-for(s in effort_subject_nrs){
-  fn = sprintf('figures/effort/subjects/%i.svg', s)
-  print(paste('Saving', fn))
-  generate_subject_effort_plot(s, fn)
+if(DO_SUBJECT_PLOTS){
+  for(s in effort_subject_nrs){
+    fn = sprintf('figures/effort/subjects/%i.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_effort_plot(s, fn)
+  }
 }
 ```
 
@@ -355,12 +383,13 @@ gamble_data$bet = gamble_data$chose_risky
 
 gamble_data = gamble_data %>%
   select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
-         participant_completion_code, # Prolific
+         prolific = participant_public_id,
          participant_private_id, participant_status, task_name, task_version,
          # Skipping counterbalance information for now
          # Task data
          rt:width) %>%
-  distinct()
+  distinct() %>%
+  mutate(bet = chose_risky)
 
 ## Some additional columns
 gamble_data = gamble_data %>%
@@ -443,6 +472,35 @@ gs$gain + no_legend() +
   plot_layout(width = c(1, 1, 1))
 ```
 
+## Bonus
+
+```{r}
+# For each subject, get the total EV of all the responses they chose
+subj_bonus_data = gamble_data %>%
+  mutate(ev_chosen = ifelse(bet, (risky_gain + risky_loss) / 2, safe)) %>%
+  group_by(prolific) %>%
+  summarise(ev = sum(ev_chosen), .groups = 'drop') %>%
+  mutate(z_ev = scale(ev, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_ev * SD_BONUS_PER_TASK,
+         reward = round(reward, 2)) %>%
+  arrange(ev)
+
+hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
 
 ```{r}
 # ggplot(gamble_data, aes(ev_risky, bet, group = subject_nr)) +
@@ -519,10 +577,12 @@ generate_subject_gamble_plot(gamble_subject_nrs[1], show=T)
 
 ```{r}
 mkdir('figures/gamble/subjects')
-for(s in gamble_subject_nrs){
-  fn = sprintf('figures/gamble/subjects/%i.svg', s)
-  print(paste('Saving', fn))
-  generate_subject_gamble_plot(s, fn)
+if(DO_SUBJECT_PLOTS){
+  for(s in gamble_subject_nrs){
+    fn = sprintf('figures/gamble/subjects/%i.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_gamble_plot(s, fn)
+  }
 }
 ```
 `
@@ -545,7 +605,7 @@ names(reward_data) = names(reward_data) %>%
 
 reward_data = reward_data %>%
   select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
-         participant_completion_code, # Prolific
+         prolific = participant_public_id,
          participant_private_id, participant_status, task_name, task_version,
          # Skipping counterbalance information for now
          # Task data
@@ -573,6 +633,32 @@ write.csv(reward_data, out, row.names = F)
 glimpse(reward_data)
 ```
 
+## Bonus
+
+```{r}
+subj_bonus_data = reward_data %>%
+  group_by(prolific) %>%
+  summarise(winnings = sum(reward), .groups = 'drop') %>%
+  mutate(z_winnings = scale(winnings, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_winnings * SD_BONUS_PER_TASK,
+         reward = round(reward, 2))
+
+hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
 
 ```{r}
 plot_details = function(  evenly_spaced = F){
@@ -657,10 +743,12 @@ reward_subject_nrs = unique(reward_data$subject_nr)
 
 ```{r}
 mkdir('figures/reward/subjects')
-for(s in reward_subject_nrs){
-  fn = sprintf('figures/reward/subjects/%i.svg', s)
-  print(paste('Saving', fn))
-  generate_subject_reward_plot(s, fn)
+if(DO_SUBJECT_PLOTS){
+  for(s in reward_subject_nrs){
+    fn = sprintf('figures/reward/subjects/%i.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_reward_plot(s, fn)
+  }
 }
 ```
 
@@ -671,7 +759,7 @@ bandit_data = merge_files(task_files$Bandits)
 
 bandit_data = bandit_data %>%
   select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
-         participant_completion_code, # Prolific
+         prolific = participant_public_id,
          participant_private_id, participant_status, task_name, task_version,
          # Skipping counterbalance information for now
          # Task data
@@ -720,6 +808,32 @@ glimpse(bandit_data)
 ```
 
 
+## Bonus
+
+```{r}
+subj_bonus_data = bandit_data %>%
+  group_by(prolific) %>%
+  summarise(winnings = sum(outcome), .groups = 'drop') %>%
+  mutate(z_winnings = scale(winnings, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_winnings * SD_BONUS_PER_TASK,
+         reward = round(reward, 2))
+
+hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
 
 ```{r fig.width=12, fig.height=4}
 ggplot(bandit_data, aes(trial_nr, score, color = factor(subject_nr))) +
@@ -765,7 +879,7 @@ gershman_data = merge_files(task_files$Gershman)
 
 gershman_data = gershman_data %>%
   select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
-         participant_completion_code, # Prolific
+         prolific = participant_public_id, # Prolific
          participant_private_id, participant_status, task_name, task_version,
          # Skipping counterbalance information for now
          # Task data
@@ -815,6 +929,34 @@ gershman_data = gershman_data %>%
   ungroup()
 ```
 
+
+## Bonus
+
+```{r}
+subj_bonus_data = gershman_data %>%
+  group_by(prolific) %>%
+  summarise(winnings = sum(reward), .groups = 'drop') %>%
+  mutate(z_winnings = scale(winnings, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_winnings * SD_BONUS_PER_TASK,
+         reward = round(reward, 2))
+
+hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
 Do Kalman filtering (see `src/Functions.R`)
 
 I made a mistake in the implementation here.
@@ -843,17 +985,6 @@ write.csv(gershman_data, out, row.names = F)
 glimpse(gershman_data)
 ```
 
-
-Trying stuff out...
-
-Plot Kalman filter inferences for one block
-(mostly to make sure calculation works)
-
-```{r}
-df = filter(gershman_data, subject_nr == gershman_data$subject_nr[[1]])
-block_df = filter(df, block_nr == 13)
-plot_kalman_block(block_df)
-```
 
 
 
@@ -955,7 +1086,7 @@ generate_subject_gershman_plot = function(.subject_nr, filename=NA, show=F){
     return(g_combined)
   }
 }
-gershman_subject_nrs = unique(gershman_data$subject_nr)
+gershman_subject_nrs = unique(gershman_data$subject_nr) %>% as.character()
 ```
 
 ```{r fig.width=12, fig.height=6}
@@ -965,57 +1096,12 @@ generate_subject_gershman_plot(gershman_subject_nrs[1], show = T)
 
 ```{r}
 mkdir('figures/gershman/subjects')
-for(s in gershman_subject_nrs){
-  fn = sprintf('figures/gershman/subjects/%i.svg', s)
-  print(paste('Saving', fn))
-  generate_subject_gershman_plot(s, fn)
+if(DO_SUBJECT_PLOTS){
+  for(s in gershman_subject_nrs){
+    fn = sprintf('figures/gershman/subjects/%s.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_gershman_plot(s, fn)
+  }
 }
 ```
-
-
-## More complicated exploration for Gershman task
-(move to later analysis scripts)
-
-```{r}
-library(lme4)
-glmm_gershman = gershman_data %>%
-  mutate_at(vars(starts_with('kalman')), scale) %>% # z transform
-  glmer(chose_right ~ kalman_value_difference + kalman_sigma_difference + 
-          kalman_weighted_value_difference +
-          # Uncomment for full random effects
-          # ( kalman_value_difference + kalman_sigma_difference + kalman_weighted_value_difference | subject_nr)
-          (1 | subject_nr),
-        data = ., family = binomial)
-summary(glmm_gershman)
-```
-
-```{r}
-glmm_gershman_mf = gershman_data %>%
-  glmer(chose_right ~ -1 + condition + condition:kalman_value_difference + (1 | subject_nr),
-        data = ., family = binomial)
-car::Anova(glmm_gershman_mf)
-```
-
-```{r}
-summary(glmm_gershman_mf)
-```
-
-
-dplyr wizardry
-
-```{r}
-coefs = summary(glmm_gershman_mf) %>% coef() %>%
-  data.frame() %>% rownames_to_column('.term') %>%
-  separate(.term, c('condition', 'term'), sep = ':') %>%
-  mutate(condition = str_remove(condition, 'condition'),
-         term = ifelse(is.na(term), 'Intercept', 'Slope')) %>%
-  rename(b = Estimate, se = Std..Error)
-ggplot(coefs, aes(condition, b, ymin = b - se, ymax = b + se)) +
-  facet_wrap(~term, scales = 'free') +
-  geom_point() + geom_linerange() +
-  coord_flip() +
-  geom_hline(linetype='dashed', yintercept=0) +
-  labs(x = 'Condition', y = 'Estimate')
-```
-
 
