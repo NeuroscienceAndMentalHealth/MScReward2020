@@ -1,0 +1,189 @@
+---
+title: "GERSHMAN_MODEL_DATA"
+author: "Megan Croal"
+date: "18/05/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require("knitr")
+library("tidyverse")
+library("dplR")
+library("dplyr")
+library("tidyr")
+library("readr")
+library(ggplot2)
+library(R.matlab)
+library("data.table") 
+library(plyr)
+
+
+```
+
+Initial data cleaning
+```{r}
+
+gershmandata<-read.csv(paste0('gershmandata/gershmandata.csv'))
+
+gershmandata_clean <- gershmandata%>%
+  mutate(total_trial_nr = rep(1:300,547)) 
+#somehow the total_trial_nr goes weird and it looks like participants are skipping every other trial no., but they still got 300 overall, we're now changing the trial numbers to 1-300
+
+#gershmandata_clean$correct_total_trial_nr = rep(1:300,547)
+#gershmandata_clean$total_trial_check = gershmandata_clean$total_trial_nr - gershmandata_clean$correct_total_trial_nr
+
+#gershmandata_clean <- gershmandata_clean%>%
+#filter(total_trial_check != 0)%>%
+#dplyr::distinct(prolific)
+
+
+```
+
+Number of subjects
+```{r}
+#N; Number of subjects (strictly positive int)
+
+nSubject <- gershmandata_clean%>%
+  select(prolific)
+nSubject <- nSubject%>%
+  dplyr::distinct(prolific)
+N = as.numeric(nrow(nSubject))
+
+rm(nSubject)
+#N = 547
+
+
+```
+
+Number of trials
+```{r}
+#T; Number of trials (strictly positive int)
+
+nTrial <- gershmandata_clean%>%
+  select(total_trial_nr) 
+
+T = as.numeric(max(nTrial))
+
+rm(nTrial)
+#T = 300
+  
+```
+
+
+Trials per subject
+```{r}
+#Tsubj[N]; Number of trials per subject (1D array of ints) — contains the max number of trials per subject
+
+#5d3f540d8a6d3300012953a0 skips every second trial to 599
+#5bbe3c5cee6586000142be43 extra trials and only 299
+#6001ba7288a6de0e9b473f1c extra trials and only 299 
+
+Tsubj  <- gershmandata_clean%>%
+  select(prolific, total_trial_nr)
+
+#Tsubj  <- Tsubj %>%
+ # filter(total_trial_nr<301)
+
+#Tsubj  <- Tsubj %>%
+ # filter(total_trial_nr>298)
+
+Tsubj  <- setDT(Tsubj )[ , .SD[which.max(total_trial_nr)], by = prolific] #takes the highest value for each prolific id (max trial number, so max trials per participant)
+
+Tsubj  <- Tsubj%>%
+  select(total_trial_nr)
+
+Tsubj <- as.data.frame(t(Tsubj))
+
+Tsubj <- t(Tsubj)
+
+Tsubj = as.vector(Tsubj)
+  
+  
+```
+
+
+Kalman value difference
+```{r}
+#V, RU and VTU need to be transformed: mutate_at(vars(starts_with('kalman')), scale) %>% # z transform
+
+# matrix[N,T] V; Matrix of z-transformed reals containing the Kalman Value Difference (i.e. V) on that trial — (rows: participants, columns : trials)
+
+V <- gershmandata_clean%>%
+  select(kalman_value_difference, total_trial_nr, prolific)
+
+V<-V%>%
+pivot_wider(names_from=total_trial_nr, values_from=kalman_value_difference) 
+
+V <- V %>% remove_rownames %>% column_to_rownames(var="prolific")
+
+V <- as.data.frame(V)
+
+```
+
+
+Kalman sigma difference
+```{r}
+#matrix[N,T] RU; Matrix of z-transformed reals containing the Kalman Sigma Difference (i.e. RU) on that trial — (rows: participants, columns : trials)
+
+RU <- gershmandata_clean%>%
+  select(kalman_sigma_difference, total_trial_nr, prolific)
+
+RU<-RU%>%
+pivot_wider(names_from=total_trial_nr, values_from=kalman_sigma_difference) 
+
+
+RU<-RU%>% remove_rownames %>% column_to_rownames(var="prolific")
+
+RU <- as.data.frame(RU)
+
+```
+
+
+
+Kalman value difference
+```{r}
+#matrix[N,T] VTU;	Matrix of z-transformed reals containing the Kalman Value Difference (i.e. V/TU) on that trial — (rows: participants, columns : trials)
+
+VTU <- gershmandata_clean%>%
+  select(kalman_weighted_value_difference, total_trial_nr, prolific)
+#kalman weighted value difference is v weighted by tu, so v/tu
+
+VTU<-VTU%>%
+pivot_wider(names_from=total_trial_nr, values_from=kalman_weighted_value_difference) 
+
+
+VTU<-VTU%>% remove_rownames %>% column_to_rownames(var="prolific")
+
+VTU <- as.data.frame(VTU)
+
+```
+
+
+Choice made for each trial and participant
+```{r}
+# int choice[N,T]; Array of ints containing the choice made for each trial and participant (i.e. option chosen out of 2 : 0 or 1) — (rows: participants, columns: trials)
+
+#need 0 or 2 for categorical, changed model 1 to bernoulli instead so 0 or 1 is fine
+
+choice <- gershmandata_clean%>%
+  select(chose_right, total_trial_nr, prolific)
+
+
+choice<-choice%>%
+pivot_wider(names_from=total_trial_nr, values_from=chose_right) 
+
+
+choice<-choice%>% remove_rownames %>% column_to_rownames(var="prolific")
+
+choice <- as.data.frame(choice)
+
+
+#choicem1[choicem1 == 1] <- 2
+#choicem1[choicem1 == 0] <- 1
+
+
+     
+```
+
