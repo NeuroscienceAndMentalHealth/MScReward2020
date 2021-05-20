@@ -1,0 +1,123 @@
+---
+title: "EFFORT_MODEL_DATA"
+author: "Megan Croal"
+date: "07/05/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require("knitr")
+library("tidyverse")
+library("dplR")
+library("dplyr")
+library("tidyr")
+library("readr")
+library(ggplot2)
+library(R.matlab)
+
+```
+
+
+DATA
+```{r}
+#int<lower=1> Ns; // number of subjects (strictly positive int)
+#int<lower=0> Nx; // maximum number of trials (int)
+#int<lower=1> Ni; // number of predictors (ignore for now and set to 1)
+
+#int<lower=0,upper=1> y[Ns,Nx]; // Responses (accept/refuse = 1 or 0) 
+                      #2D array of ints (rows: participant, columns: trials)
+
+#matrix<lower=0>[Ns,Nx] x_rwd; // Matrix of reals containing the reward level for each participant and trial (rows: participant, column: trial)
+
+#matrix<lower=0>[Ns,Nx] x_eff;  // Matrix of reals containing the effort level for each participant and trial (rows: participant, column: trial)
+
+```
+
+Clean initial dataframe
+```{R}
+effort_data<-read.csv(paste0('effortdata/effortdata.csv'))
+effort_sequences<-read.csv(paste0('effortdata/effortsequences.csv'))
+
+effort_data_new<-effort_data%>%
+  select(prolific, accepted, reward, trial_nr, phase, difficulty, n_switches, n_errors, odd_right)%>%
+  filter(!str_detect(phase,'calibration'))%>%
+  filter(!str_detect(phase,'demo'))%>%
+mutate(trial_nr=trial_nr+1)
+```
+
+Responses (accept vs reject) 
+```{R}
+y <- effort_data_new%>%
+  select(prolific, trial_nr, accepted)
+
+y<-y%>%
+pivot_wider(names_from=trial_nr, values_from=accepted) 
+
+y <- subset (y, select = -66)
+
+y[2:64] <- lapply(y[2:64], as.numeric)
+
+
+y <- y %>% remove_rownames %>% column_to_rownames(var="prolific")
+
+
+y <- as.data.frame(t(y))
+
+y <- t(y)
+```
+
+reward
+```{R}
+x_rwd <- effort_data_new%>%
+  select(prolific, trial_nr, reward)
+
+x_rwd<-x_rwd%>%
+  pivot_wider(names_from=trial_nr, values_from=reward) 
+
+x_rwd <- subset (x_rwd, select = -66)
+
+x_rwd[2:65] <- lapply(x_rwd[2:65], as.numeric)
+
+x_rwd <- x_rwd %>% remove_rownames %>% column_to_rownames(var="prolific")
+
+x_rwd <- as.data.frame(t(x_rwd))
+
+x_rwd <- t(x_rwd)
+
+```
+
+effort level
+```{R}
+x_eff <- effort_data_new%>%
+  select(prolific, trial_nr, difficulty)
+
+x_eff <- x_eff%>%
+  pivot_wider(names_from=trial_nr, values_from=difficulty) 
+
+x_eff <- subset (x_eff, select = -66)
+
+x_eff[2:65] <- lapply(x_eff[2:65], as.numeric)
+
+x_eff <- x_eff %>% remove_rownames %>% column_to_rownames(var="prolific")
+
+x_eff <- as.data.frame(t(x_eff))
+
+x_eff <- t(x_eff)
+```
+
+Numbers
+```{R}
+#Subject ids
+Ns = 547
+
+#Trial numbers
+Nx = 64
+
+#Number of predictors
+Ni = 1
+```
+
+
+
