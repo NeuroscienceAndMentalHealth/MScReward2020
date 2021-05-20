@@ -1,0 +1,593 @@
+title: "QUESTIONNAIRE_CLEANING"
+output: html_document
+
+```{r setup, include=FALSE, cache = FALSE}
+require("knitr")
+library("tidyverse")
+library("dplR")
+library("dplyr")
+library("tidyr")
+library("readr")
+
+opts_knit$set(root.dir = "C:/Users/Meggy/Google Drive/Documents/MASTERS_UCL_2020/PROJECT AND DISSERTATION/ANALYSIS/MAIN DATA ANALYSIS/MScReward2020-main/Results/Pilot/data/questionnaires")
+```
+
+#Load in all data and generate randomizers from demographics data
+```{r}
+getwd()
+
+excluded_IDs <- c("604693490c8a9f0be38a4ecd",
+"5cd09d5b41dacf001774fb2a",
+"5ea98a3a64c8cb0a4600fb18",
+"59e0d7d6ac0af70001b365b4",
+"5f514a2b5552dd37bc2060da",
+"5e949ca2c09edb04cc9f1f3b",
+"60302c62ce008ce6acbb084f",
+"5c35637d3ce2c80001118abf",
+"56c63a40305eaa000cf1fa3f",
+"5e986485b99bdb075b828188",
+"6019b2c741632714149c6f77",
+"5c52481296b5130001776b83",
+"5f0f17ed8c30af0581b9af35",
+"57509aade19ee9000680df04",
+"5ea5dc66c30a775e8d0028b1",
+"604111bc5989db01df8f3f85",
+"6047ae5953a87c02d47fc454",
+"5ed96d809d0c93500acfc536",
+"5f720be956c0ef0dc307426f",
+"5ce9b0e4be5a6b00163f6870",
+"5e9eca0cd09bbd0008c315bc",
+"603d2bb48fd0a9beccab72fc",
+"5922aca66be73a0001cfd1d2",
+"5ea7f43226a69e1e06d0b607",
+"5f49ae4b0a96474144fcc3d7",
+"603c058974df2e8db8d6cedf",
+"5a66581a31b87a0001c71b79",
+"5eb527183a39fe01bd835f68",
+"5c5990bf8d6d5b000196d781",
+"5fada948aad52b14baedd83e",
+"5e076044dc265f0d23386aae",
+"5efa27ec1c76730eff3dad8e",
+"5d5b9c693234e300154e514f",
+"5d11135e497895001bc390ee",
+"5f620fdcc464341e830b3866",
+"5f12488b0a46a61977e1f9ea",
+"5c34cece6288ec00016a5363",
+"5aa7b522b5e2110001c74775",
+"5f58f2571feaa10acdf3d9a8",
+"5f299667ca75e30ce09002aa",
+"602abf08aa844c1521596632",
+"59930c0fb9269d00016ec252",
+"602bcdb63b8daf37202df1d9",
+"5e291f8145cbca0ecbadd6a3",
+"6001ba7288a6de0e9b473f1c",
+"5c094b4b1907db00016017d7",
+"5f35b2747109cd5d1f907c49"
+)
+
+#version 7
+demographics<-read.csv(paste0('PROLIFIC.csv'))
+AES<-read.csv(paste0('AES.csv'))
+Consent<-read.csv(paste0('CONSENT.csv'))
+Covid<-read.csv(paste0('COVID.csv'))
+Fatigue<-read.csv(paste0('FATIGUE.csv'))
+IPAQ<-read.csv(paste0('IPAQ.csv'))
+OCIR<-read.csv(paste0('OCIR.csv'))
+STAIT<-read.csv(paste0('STAIT.csv'))
+STAIS<-read.csv(paste0('STAIS.csv'))
+TEPS<-read.csv(paste0('TEPS.csv'))
+Zung<-read.csv(paste0('ZUNG.csv'))
+MHBasics<-read.csv(paste0('MHBASICS.csv'))
+
+
+#version 10
+AES2<-read.csv(paste0('AES2.csv'))
+Consent2<-read.csv(paste0('CONSENT2.csv'))
+Covid2<-read.csv(paste0('COVID2.csv'))
+Fatigue2<-read.csv(paste0('FATIGUE2.csv'))
+IPAQ2<-read.csv(paste0('IPAQ2.csv'))
+OCIR2<-read.csv(paste0('OCIR2.csv'))
+STAIT2<-read.csv(paste0('STAIT2.csv'))
+STAIS2<-read.csv(paste0('STAIS2.csv'))
+TEPS2<-read.csv(paste0('TEPS2.csv'))
+Zung2<-read.csv(paste0('ZUNG2.csv'))
+AES2<-read.csv(paste0('AES2.csv'))
+MHBasics2<-read.csv(paste0('MHBASICS2.csv'))
+
+
+#version 11
+AES3<-read.csv(paste0('AES3.csv'))
+Consent3<-read.csv(paste0('CONSENT3.csv'))
+Covid3<-read.csv(paste0('COVID3.csv'))
+Fatigue3<-read.csv(paste0('FATIGUE3.csv'))
+IPAQ3<-read.csv(paste0('IPAQ3.csv'))
+OCIR3<-read.csv(paste0('OCIR3.csv'))
+STAIT3<-read.csv(paste0('STAIT3.csv'))
+STAIS3<-read.csv(paste0('STAIS3.csv'))
+TEPS3<-read.csv(paste0('TEPS3.csv'))
+Zung3<-read.csv(paste0('ZUNG3.csv'))
+AES3<-read.csv(paste0('AES3.csv'))
+MHBasics3<-read.csv(paste0('MHBASICS3.csv'))
+
+
+#Merge datasets
+AES<-rbind(AES, AES2, AES3)
+Consent<-rbind(Consent, Consent2, Consent3)
+Covid<-rbind(Covid, Covid2, Covid3)
+Fatigue<-rbind(Fatigue, Fatigue2, Fatigue3)
+IPAQ<-rbind(IPAQ, IPAQ2, IPAQ3)
+OCIR<-rbind(OCIR, OCIR2, OCIR3)
+STAIT<-rbind(STAIT, STAIT2, STAIT3)
+STAIS<-rbind(STAIS, STAIS2, STAIS3)
+TEPS<-rbind(TEPS, TEPS2, TEPS3)
+Zung<-rbind(Zung, Zung2, Zung3)
+MHBasics<-rbind(MHBasics, MHBasics2, MHBasics3)
+
+#Tidy column titles
+names(AES) = names(AES) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(AES)[1] <- gsub('^...','',colnames(AES)[1])
+
+names(Consent) = names(Consent) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(Consent)[1] <- gsub('^...','',colnames(Consent)[1])
+
+names(Covid) = names(Covid) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(Covid)[1] <- gsub('^...','',colnames(Covid)[1])
+
+names(Fatigue) = names(Fatigue) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(Fatigue)[1] <- gsub('^...','',colnames(Fatigue)[1])
+
+names(IPAQ) = names(IPAQ) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(IPAQ)[1] <- gsub('^...','',colnames(IPAQ)[1])
+
+IPAQ<-IPAQ%>%
+filter(!str_detect(question_key,'END QUESTIONNAIRE'))%>%
+  filter(!str_detect(question_key,'BEGIN QUESTIONNAIRE'))
+    IPAQ<-IPAQ[!(is.na(IPAQ$response) | IPAQ$response==""), ]
+
+
+names(OCIR) = names(OCIR) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(OCIR)[1] <- gsub('^...','',colnames(OCIR)[1])
+
+names(STAIS) = names(STAIS) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(STAIS)[1] <- gsub('^...','',colnames(STAIS)[1])
+
+names(STAIT) = names(STAIT) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(STAIT)[1] <- gsub('^...','',colnames(STAIT)[1])
+
+names(TEPS) = names(TEPS) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(TEPS)[1] <- gsub('^...','',colnames(TEPS)[1])
+
+names(Zung) = names(Zung) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(Zung)[1] <- gsub('^...','',colnames(Zung)[1])
+
+names(MHBasics) = names(MHBasics) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(MHBasics)[1] <- gsub('^...','',colnames(MHBasics)[1])
+
+#remove dodgy rb
+AES <- AES %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+Consent <- Consent %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+Covid <- Covid %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+Fatigue <- Fatigue %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+IPAQ <- IPAQ %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+OCIR <- OCIR %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+STAIT <- STAIT %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+STAIS <- STAIS %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+TEPS <- TEPS %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+Zung <- Zung %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+MHBasics <- MHBasics %>%
+  filter(!participant_public_id %in% excluded_IDs)
+
+```
+
+```{r}
+#create randomisers
+randomisers<-demographics%>%
+    filter(status=='APPROVED'&participant_id %in% AES$participant_public_id)%>%
+    select(participant_id)%>%
+    mutate(randomiser=sample(1:length(participant_id)))
+write.csv(file=paste0('randomisers.csv'),randomisers,row.names=FALSE)
+
+#read the randomisers in
+randomisers<-read.csv(file=paste0('randomisers.csv'),row.names=NULL)
+```
+
+
+```{r}
+#Clean demographics data
+#Tidy column titles
+names(demographics) = names(demographics) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+colnames(demographics)[1] <- gsub('^...','',colnames(demographics)[1])
+
+#Rename first column 
+demographics<-demographics %>% 
+  rename(
+    session_id = sion_id,)
+
+demographics_clean <- demographics%>%
+  select(session_id,participant_id,time_taken, age, country_of_birth, current_country_of_residence, fluent_languages, nationality, sex, student_status)
+```
+
+Cleans pilot data: MHBasics
+```{r}
+MHBasics_clean<-MHBasics%>%
+  select(participant_public_id,question_key,response)%>%
+  group_by(participant_public_id) %>%
+filter(!str_detect(response,'N/A'))%>%
+  filter(!str_detect(response,'n/a'))%>%
+filter(!str_detect(question_key,'END QUESTIONNAIRE'))%>%
+  filter(!str_detect(question_key,'BEGIN QUESTIONNAIRE'))
+
+#remove blanks and NA
+  MHBasics_clean<-MHBasics_clean[!(is.na(MHBasics_clean$response) | MHBasics_clean$response==""), ]
+  
+  MHBasics_clean<-MHBasics_clean[!(is.na(MHBasics_clean$question_key) | MHBasics_clean$question_key==""), ]
+  
+MHBasics_clean<-MHBasics_clean %>% 
+  pivot_wider(names_from=question_key, values_from=response) 
+
+out = 'MHBasics_clean.csv'
+write.csv(MHBasics_clean, out, row.names = F)
+
+
+
+#Turn rows into columns excluding steps/start/end
+#MHbasics$Total_Steps <- sum("MHbasics_stepstoday", #"MHbasics_stepsyesterday", "MHbasics_stepstwodaysago")
+```
+
+Cleans pilot data: TEPS
+```{r}
+#extract catch 75 from TEPS questionnaire
+teps_catch75<-TEPS%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  select(participant_public_id,question_key,response)%>%
+  group_by(participant_public_id) %>%
+  summarise(catch75=response[question_key=="catch75"])
+
+#TEPS reverse scored item 13(teps13_restaurant_r)
+reverse<-c('teps13_restaurant_r')
+TEPS_clean<-TEPS%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  filter(!str_detect(question_key,'catch75'))%>%
+  select(participant_public_id,question_key,response)%>%
+  mutate(response = recode(response, 'very false for me'= 1, 'moderately false for me' = 2, 'slightly false for me' = 3, 'slightly true for me' = 4, 'moderately true for me' = 5, 'very true for me'= 6))%>%
+  mutate(response = ifelse(question_key %in% reverse,7-response,response))%>%
+  select(participant_public_id,question_key,response)%>%
+  group_by(participant_public_id)%>%
+  summarise(total_teps=sum(response))
+
+#delete first row of NA
+TEPS_clean<-TEPS_clean[-c(1), ]
+```
+
+
+Cleans pilot data: OCIR
+```{r}
+#OCIR
+OCIR_clean <- OCIR%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  select(participant_public_id,question_key,response)%>%
+  mutate(response = recode(response,  'not at all'= 0, 'a little' = 1, 'moderately' = 2, 'a lot' = 3, 'extremely' = 4))%>%
+  group_by(participant_public_id)%>%
+  summarise(total_ocir=sum(response))
+
+#delete first row of NA
+OCIR_clean<-OCIR_clean[-c(1), ]
+```
+
+
+Cleans pilot data: COVID IMPACT
+```{r}
+covid_worry_items<-c('covid_worried','covid_likeliness')
+covid_recode<-c('covid_frequency')
+Covid_clean<-Covid%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  select(participant_public_id,question_key,response)%>%
+  mutate(response = ifelse(question_key %in% covid_recode,recode(response, 'None'= 0, '1 to 3' = 1, '4 to 6' = 2, '7 to 9' = 3, '10 to 12' = 4, '13 to 15'= 5, '16 or more' = 6),response))%>%
+  group_by(participant_public_id)%>%
+  summarise(covid_worry=sum(as.numeric(as.character(response[question_key %in% covid_worry_items])),na.rm=TRUE),
+            covid_globaleffects=response[question_key=='covid_globaleffects'],
+            covid_frequency=response[question_key=='covid_frequency'])
+```
+
+
+Cleans pilot data: AES
+```{r}
+#reverse scored items are Q6 aes6_littleeffort and Q10 aes10_tellme
+reverse<-c('aes6_littleeffort','aes10_tellme')
+
+#clean and bind together
+AES_clean<-AES%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  select(participant_public_id,question_key,response)%>%
+  mutate(response = recode(response, 'A lot'= 4, 'Somewhat' = 3, 'Slightly' = 2, 'Not at all' = 1))%>%
+  mutate(response = ifelse(question_key %in% reverse,5-response,response))%>%
+  group_by(participant_public_id)%>%
+  summarise(total_AES=sum(response))
+
+#delete first row of NA
+AES_clean <- AES_clean[-c(1), ]
+```
+
+
+Cleans pilot data: Fatigue
+```{r}
+
+#clean and bind fatigue
+Fatigue_clean<-Fatigue %>%
+  filter(!str_detect(question_key,'quantised')) %>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE')) %>%
+  select(participant_public_id,question_key,response) %>%
+  group_by(participant_public_id) %>%
+  summarise(total_Fatigue=sum(response))
+
+#delete first row of NA
+Fatigue_clean <- Fatigue_clean[-c(1), ]
+```
+
+Cleans pilot data: IPAQ7
+```{r}
+
+library(lubridate)
+
+#clean and bind IPAQ7
+IPAQ_clean<-IPAQ%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  filter(!str_detect(question_key,'catch50'))%>%
+  select(participant_public_id,question_key,response)
+
+#out = 'IPAQ_clean.csv'
+#write.csv(IPAQ_clean, out, row.names = F)
+
+#remove last row of NA and weird values
+IPAQ_clean<-IPAQ_clean[!(is.na(IPAQ_clean$response) | IPAQ_clean$response==""), ]
+
+IPAQ_clean$response = as.numeric(as.character(IPAQ_clean$response))
+
+#nest data by participant
+IPAQ_nested <- IPAQ_clean %>% 
+  group_by(`participant_public_id`) %>% 
+  nest() %>% 
+  arrange(`participant_public_id`) #create nested tibble
+
+IPAQ_nested<-IPAQ_nested[-c(1), ]
+
+#check code using 1 participant
+#IPAQ_nested <- IPAQ_nested[1,]
+
+#main set of functions to compute scores
+IPAQ_nested <- IPAQ_nested %>% mutate( #main set of functions to compute scores
+  
+  sitting_mins_day = flatten_dbl(map(data, function(df) {
+    bout <- dhours(df$response[df$`question_key` == "ipaq7_sittingtimehr"]) + dminutes(df$response[df$`question_key` == "ipaq7_sittingtimemin_r"])
+    
+    if (bout > dhours(24)) { #P's could report bout length up to 24hrs55 - truncate to 24 if necessary
+      bout <- dhours(24)
+    }
+    
+    return(as.numeric(bout)/60)
+    
+  })),
+  
+  walking_mins = flatten_dbl(map(data, function(df) {
+    
+    days <- df$response[df$`question_key` == "ipaq5_walkingdays"]
+    bout <- dhours(df$response[df$`question_key` == "ipaq6_walkingtimehr"]) + dminutes(df$response[df$`question_key` == "ipaq6_walkingtimemin"])
+    
+    if (bout > dhours(3)) { #truncate data if reported bout > 3hours, or < 10 mins
+      bout <- dhours(3)
+    } else if(bout < dminutes(10)) {
+      bout <- dseconds(0)
+    }
+    
+    return(as.numeric(bout)*days/60)
+  })),
+  
+  moderate_mins = flatten_dbl(map(data, function(df) {
+    
+    days <- df$response[df$`question_key` == "ipaq3_moderatedays"]
+    bout <- dhours(df$response[df$`question_key` == "ipaq4_moderatetimehr"]) + dminutes(df$response[df$`question_key` == "ipaq4_moderatetimemin"])
+    
+    if (bout > dhours(3)) { #truncate data if reported bout > 3hours, or < 10 mins
+      bout <- dhours(3)
+    } else if(bout < dminutes(10)) {
+      bout <- dseconds(0)
+    }
+    
+    return(as.numeric(bout)*days/60)
+  })),
+  
+  vigorous_mins = flatten_dbl(map(data, function(df) {
+    
+    days <- df$response[df$`question_key` == "ipaq1_vigorousdays"]
+    bout <- dhours(df$response[df$`question_key` == "ipaq2_vigoroustimehr"]) + dminutes(df$response[df$`question_key` == "ipaq2_vigoroustimemin"])
+    
+    if (bout > dhours(3)) { #truncate data if reported bout > 3hours, or < 10 mins
+      bout <- dhours(3)
+    } else if(bout < dminutes(10)) {
+      bout <- dseconds(0)
+    }
+    
+    return(as.numeric(bout)*days/60)
+  }))
+  
+) %>%
+  
+  # Now compute the overall MET-minutes score
+  mutate(met_mins = flatten_dbl(pmap(list(walking_mins, moderate_mins, vigorous_mins), function(walking, moderate, vigorous) {
+    score <- walking*3.3 + moderate*4 + vigorous*8
+    return(score)
+  })))
+  
+IPAQ_cleanfinal<-IPAQ_nested%>%
+  select(participant_public_id, met_mins)
+
+```
+
+Cleans pilot data: STAIS
+```{r}
+#STAI_S
+
+# reverse scored items 
+reverse <- c('staistate1_calm_r','staistate2_secure_r','staistate5_atease_r','staistate8_rested_r','staistate10_comfortable_r','staistate11_selfconfident_r','staistate15_relaxed_r','staistate16_content_r','staistate19_joyful_r','staistate20_pleasent_r')
+
+#clean and bind together
+STAIS_clean<-STAIS%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+    select(participant_public_id,question_key,response)%>%
+  mutate(response = recode(response, 'Very much so'= 4, 'Moderately so' = 3, 'Somewhat' = 2, 'Not at all' = 1))%>%
+  mutate(response = ifelse(question_key %in% reverse,5-response,response))%>%
+  group_by(participant_public_id) %>%
+  summarise(total_STAIS=sum(response))
+
+# delete first row of NA  
+  STAIS_clean <- STAIS_clean[-c(1), ]
+```
+
+Cleans pilot data: STAIT
+```{r}
+#STAI_T
+
+# reverse scored items 
+reverse <- c('staitrait1_pleasent_r','staitrait3_satisfied_r','staitrait6_rested_r','staitrait7_calm_r','staistate10_happy_r','staitrait13_secure_r','staitrait14_decisionmaking_r','staitrait16_content_r','staitrait19_steady_r')
+
+
+#clean and bind together
+STAIT_clean<-STAIT%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+    select(participant_public_id,question_key,response)%>%
+  mutate(response = recode(response, 'almost always'= 4, 'often' = 3, 'sometimes' = 2, 'almost never' = 1))%>%
+  mutate(response = ifelse(question_key %in% reverse,5-response,response))%>%
+  group_by(participant_public_id) %>%
+  summarise(total_STAIT=sum(response))
+
+# delete first row of NA  
+  STAIT_clean <- STAIT_clean[-c(1), ]
+```  
+
+Cleans pilot data: ZUNG
+```{r}
+#ZUNG
+
+# reverse scored items 
+reverse <- c('zung2_morning_r','zung5_appetite_r','zung6_sex_r','zung11_clearmind_r','zung12_atease_r','zung14_hope_r','zung16_decisionmaking_r','zung17_usefulneeded_r','zung18_fulllife_r', 'zung20_enjoy_r')
+
+
+#clean and bind together
+Zung_clean<-Zung%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  filter(!str_detect(question_key,'catch25'))%>%
+  select(participant_public_id,question_key,response)%>%
+  mutate(response = recode(response, 'Most of the Time'= 4, 'A Good Part of the Time' = 3, 'Some of the Time' = 2, 'A Little of the Time' = 1))%>%
+  mutate(response = ifelse(question_key %in% reverse,5-response,response))%>%
+  group_by(participant_public_id) %>%
+  summarise(total_Zung=sum(response))
+
+# delete first row of NA  
+  Zung_clean <- Zung_clean[-c(1), ]
+```
+
+
+```{r}
+#Catch questions
+IPAQ_catch<-IPAQ %>%
+  select(participant_public_id,question_key,response) %>%
+  group_by(participant_public_id) %>%
+  summarise(catch50=response[question_key=="catch50"])
+
+Zung_catch<-Zung%>%
+  select(participant_public_id,question_key,response)%>%
+  group_by(participant_public_id) %>%
+  summarise(catch25=response[question_key=='catch25'])
+
+teps_catch75<-TEPS%>%
+  filter(!str_detect(question_key,'quantised'))%>%
+  filter(!str_detect(question_key,'QUESTIONNAIRE'))%>%
+  select(participant_public_id,question_key,response)%>%
+  group_by(participant_public_id) %>%
+  summarise(catch75=response[question_key=="catch75"])
+
+#Bind catch together
+overall_catch <- IPAQ_catch %>%
+  inner_join(teps_catch75) %>%
+  inner_join(Zung_catch) 
+
+
+```
+
+```{r}
+#Bind questionnaires together
+
+overall_df<-TEPS_clean %>%
+  inner_join(demographics_clean, by = c('participant_public_id'='participant_id')) %>%
+  inner_join(Covid_clean) %>%
+  inner_join(Fatigue_clean) %>%
+  inner_join(IPAQ_cleanfinal) %>%
+  inner_join(STAIT_clean) %>%
+  inner_join(STAIS_clean) %>%
+  inner_join(Zung_clean) %>%
+  inner_join(AES_clean) %>%
+  inner_join(OCIR_clean) %>%
+  inner_join(overall_catch) 
+
+overall_df<-randomisers %>%
+  inner_join(overall_df,by = c('participant_id'='participant_public_id')) %>%
+  mutate(participant_id=NULL) %>%
+  rename(id=randomiser) %>%
+  arrange(id)
+
+overall_df
+write.csv(file=paste0('questionnaire_data.csv'),overall_df,row.names=FALSE)
+```
