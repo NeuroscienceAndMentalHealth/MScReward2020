@@ -1,0 +1,531 @@
+---
+title: "EFFORT_MODELLING_MCMC"
+author: "Megan Croal"
+date: "12/05/2021"
+output: html_document
+---
+
+```{r}
+library (bayesplot)
+library (rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+library(tidyr)
+require(knitr)
+library(tidyverse)
+library(dplR)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(R.matlab)
+
+
+rstan_data<-list(Ni=Ni,Ns=Ns,Nx=Nx,x_eff=x_eff,x_rwd=x_rwd,y=y)
+
+#Load the model into an object
+mcmc_model1 <- ('effortmodels/model_1/model_1.stan')
+mcmc_model2 <- ('effortmodels/model_2/model_2.stan')
+mcmc_model3 <- ('effortmodels/model_3/model_3.stan')
+mcmc_model4 <- ('effortmodels/model_4/model_4.stan')
+mcmc_model5 <- ('effortmodels/model_5/model_5.stan')
+
+
+rstan_data<-list(Ni=Ni,Ns=Ns,Nx=Nx,x_eff=x_eff,x_rwd=x_rwd,y=y)
+
+```
+
+
+RUN MCMC
+```{r}
+nIter     <- 2000  #how many samples will be taken
+nChains   <- 4    #how many starting points of the sampler (robot) (sequences of visits)
+nWarmup   <- floor(nIter/2) #how many of the samples will be discarded as warmups
+nThin     <- 1   #how many samples will be included/skipped
+
+cat("Estimating", mcmc_model1, "model... \n")
+    startTime = Sys.time(); print(startTime)
+    cat("Calling", nChains, "simulations in Stan... \n")
+#Use this to see how long the modelling takes and each simulation
+
+fit_mcmcmodel1 <- stan(mcmc_model1, 
+                   data    = rstan_data, 
+                   chains  = nChains,
+                   iter    = nIter,
+                   warmup  = nWarmup,
+                   thin    = nThin,
+                   init    = "random",
+                   #control  = list(adapt_delta=0.999, max_treedepth=100),
+                   seed    = 006 #so you can replicate the model
+                   )
+
+ cat("Finishing", mcmc_model1, "model simulation ... \n")
+    endTime = Sys.time(); print(endTime)  
+    cat("It took",as.character.Date(endTime - startTime), "\n")
+
+save.image(file = "fit_mcmcmodel1.RData")
+
+```
+
+#model 2
+```{r}
+cat("Estimating", mcmc_model2, "model... \n")
+    startTime = Sys.time(); print(startTime)
+    cat("Calling", nChains, "simulations in Stan... \n")
+
+fit_mcmcmodel2 <- stan(mcmc_model2, 
+                   data    = rstan_data, 
+                   chains  = nChains,
+                   iter    = nIter,
+                   warmup  = nWarmup,
+                   thin    = nThin,
+                   init    = "random",
+                   #control  = list(adapt_delta=0.999, max_treedepth=100),
+                   seed    = 007
+                   )
+
+ cat("Finishing", mcmc_model2, "model simulation ... \n")
+    endTime = Sys.time(); print(endTime)  
+    cat("It took",as.character.Date(endTime - startTime), "\n")
+
+save.image(file = "fit_mcmcmodel2.RData") 
+    
+```
+
+
+#model 3
+```{r}
+cat("Estimating", mcmc_model3, "model... \n")
+    startTime = Sys.time(); print(startTime)
+    cat("Calling", nChains, "simulations in Stan... \n")
+
+fit_mcmcmodel3 <- stan(mcmc_model3, 
+                   data    = rstan_data, 
+                   chains  = nChains,
+                   iter    = nIter,
+                   warmup  = nWarmup,
+                   thin    = nThin,
+                   init    = "random",
+                   #control  = list(adapt_delta=0.999, max_treedepth=100),
+                   seed    = 008
+                   )
+
+ cat("Finishing", mcmc_model3, "model simulation ... \n")
+    endTime = Sys.time(); print(endTime)  
+    cat("It took",as.character.Date(endTime - startTime), "\n")
+
+save.image(file = "fit_mcmcmodel3.RData") 
+    
+```
+
+LOO
+```{R}
+
+library(loo)
+LL1_mcmc <- extract_log_lik(fit_mcmcmodel1)
+loo1_mcmc <- loo(LL1_mcmc)
+waic1_mcmc <- waic(LL1_mcmc)
+
+LL2_mcmc <- extract_log_lik(fit_mcmcmodel2)
+loo2_mcmc <- loo(LL2_mcmc)
+waic2_mcmc <- waic(LL2_mcmc)
+
+LL3_mcmc <- extract_log_lik(fit_mcmcmodel3)
+loo3_mcmc <- loo(LL3_mcmc)
+waic3_mcmc <- waic(LL3_mcmc)
+
+LL4 <- extract_log_lik(fit_vbmodel4r)
+loo4 <- loo(LL4)
+waic4 <- waic(LL4)
+
+LL5 <- extract_log_lik(fit_vbmodel5r)
+loo5 <- loo(LL5)
+waic5 <- waic(LL5)
+
+
+```
+
+
+
+PLOT MODEL COMPARISON LOOIC
+```{r}
+#Plot model comparison results as a bar chart (or at least as a table)
+
+looic_values_mcmc <- rbind(loo1_mcmc$looic, loo2_mcmc$looic, loo3_mcmc$looic, loo4$looic, loo5$looic) 
+
+looic_se_mcmc <- rbind(loo1_mcmc$se_looic, loo2_mcmc$se_looic, loo3_mcmc$se_looic, loo4$se_looic, loo5$se_looic) 
+
+looic_against_winning_mcmc <- rbind(loo1_mcmc$looic-loo2_mcmc$looic, loo2_mcmc$looic-loo2_mcmc$looic, loo3_mcmc$looic-loo2_mcmc$looic, loo4$looic-loo2_mcmc$looic, loo5$looic-loo2_mcmc$looic) 
+
+looic_values_mcmc <- cbind(looic_values_mcmc, looic_se_mcmc, looic_against_winning_mcmc)
+
+looic_values_mcmc <- as.data.frame(looic_values_mcmc)
+
+
+colnames(looic_values_mcmc)[2] <- "se_looic"
+colnames(looic_values_mcmc)[1] <- "looic"
+colnames(looic_values_mcmc)[3] <- "looic_minus_winning"
+
+
+#row.names(looic_values) <- c("model1", "model2", "model3", "model4", "model5")
+
+looic_values_mcmc$model <- c("model1", "model2", "model3", "model4", "model5" )
+
+
+mcmc_modelcomparison_effort <- ggplot(looic_values_mcmc) +
+  geom_bar(aes(x=model, y=looic),stat="identity",
+                             colour = "black",  #black outside lines
+                             size   = 0.3,     
+                             width = 0.6, fill="slategray3") +  
+  labs(title="LOOIC Comparison Effort MCMC and VB") + 
+  theme(plot.title = element_text(hjust = 0.5)) + #centre the title
+  geom_errorbar(aes(x=model, ymin=looic-se_looic, ymax=looic+se_looic), size = 0.6, width=0.3, colour="black", alpha=0.9, position=position_dodge(.9))
+
+save.image(file = "mcmc_modelcomparison_effort")
+
+```
+
+
+PLOT MODEL COMPARISON BIC 
+```{r}
+
+# take the mean LL per subject over the 1000 iterations you should have a mean LL for each subject then plug that into the equation and that’ll give you a rough BIC per participant
+
+#if you sum up the BIC per participant on a given model that gives you your Bayes Factor estimate for the model
+
+#model 1: #params = 1
+#model 2: #params = 3
+#model 3: #params = 4
+#model 4: #params = 4
+#model 5: #params = 5
+
+#using mcmc for models 1, 2, 3 and vb for models 4 and 5
+
+#model 1
+np = 1 # number of parameters
+nt = 64 # number of trials 
+
+LL <- LL1_mcmc 
+#LL <- LL * -1 #dont make positive
+LL <- colMeans(LL) #mean LL for each participant
+
+BIC_1 <- np * log(nt) - 2*LL
+BIC_1 <- sum(BIC_1)
+
+
+#model 2
+np = 3 # number of parameters
+nt = 64 # number of trials 
+
+LL <- LL2_mcmc 
+#LL <- LL * -1 #dont make positive
+LL <- colMeans(LL) #mean LL for each participant
+
+BIC_2 <- np * log(nt) - 2*LL
+BIC_2 <- sum(BIC_2)
+
+
+#model 3
+np = 4 # number of parameters
+nt = 64 # number of trials 
+
+LL <- LL3_mcmc 
+#LL <- LL * -1 #dont make positive
+LL <- colMeans(LL) #mean LL for each participant
+
+BIC_3 <- np * log(nt) - 2*LL
+BIC_3 <- sum(BIC_3)
+
+
+#model 4
+np = 4 # number of parameters
+nt = 64 # number of trials 
+
+LL <- LL4
+#LL <- LL * -1 #dont make positive
+LL <- colMeans(LL) #mean LL for each participant
+
+BIC_4 <- np * log(nt) - 2*LL
+BIC_4 <- sum(BIC_4)
+
+
+#model 5
+np = 5 # number of parameters
+nt = 64 # number of trials 
+
+LL <- LL5 
+#LL <- LL * -1 #dont make positive
+LL <- colMeans(LL) #mean LL for each participant
+
+BIC_5 <- np * log(nt) - 2*LL
+BIC_5 <- sum(BIC_5)
+
+
+
+#PLOT BICs
+BIC_values <- rbind(BIC_1, BIC_2, BIC_3, BIC_4, BIC_5)
+#BIC_values <- BIC_values*-1
+BIC_values <- as.data.frame(BIC_values)
+BIC_values$model <- c("model1", "model2", "model3", "model4", "model5")
+colnames(BIC_values)[1] <- "BIC"
+
+BIC_against_winning <- rbind(BIC_1-BIC_2, BIC_2-BIC_2, BIC_3-BIC_2, BIC_4-BIC_2, BIC_5-BIC_2)
+
+#BIC_against_winning <- BIC_against_winning*-1
+
+BIC_values <- cbind(BIC_values, BIC_against_winning)
+
+
+ggplot(BIC_values) +
+  geom_bar(aes(x=model, y=BIC),stat="identity",
+                             colour = "black",  #black outside lines
+                             size   = 0.3,     
+                             width = 0.6, fill="slategray3") +  
+  labs(title="BIC Comparison Effort") + 
+  theme(plot.title = element_text(hjust = 0.5)) #centre the title
+
+
+
+#plot BIC values against winning model
+ggplot(BIC_values) +
+  geom_bar(aes(x=model, y=BIC_against_winning),stat="identity",
+                             colour = "black",  #black outside lines
+                             size   = 0.3,     
+                             width = 0.6, fill="slategray3") +  
+  labs(title="BIC Comparison Against Winning Model Effort") + 
+  theme(plot.title = element_text(hjust = 0.5)) #centre the title
+```
+
+
+GROUP LEVEL DISTRIBUTIONS
+```{R}
+
+stan_plot(fit_mcmcmodel2, pars=c('muR', 'muE', 'muI', 'sdI', 'sdE', 'sdR'), show_density=T, fill_color = 'slategray3') + labs(title = "Effort Model 2 Group Level Distributions") + theme(plot.title = element_text(hjust = 0.5))
+
+
+#model 2 group level distributions histograms
+color_scheme_set("blue")
+mcmc_hist(posterior_mcmcmodel2, pars = c("muI", "sdI")) 
+
+mcmc_hist(posterior_mcmcmodel2, pars = c("muE", "sdE")) 
+
+mcmc_hist(posterior_mcmcmodel2, pars = c("muR", "sdR"))  
+
+mcmc_hist(posterior_model5, pars = c("muE", "sdE"))
+
+```
+
+
+ESTIMATE INDIVIDUAL AVERAGE PARAMETER VALUES FROM WINNING MODEL
+```{r}
+#Estimate the mean/average parameter value from the winning model for each individual subject and winning model parameter (in the effort task that will be : 1 thetaR, 1 thetaE, 1 thetaI, per participant)
+
+posterior_mcmcmodel1df <- as.data.frame(fit_mcmcmodel1)
+posterior_mcmcmodel2df <- as.data.frame(fit_mcmcmodel2)
+posterior_mcmcmodel3df <- as.data.frame(fit_mcmcmodel3)
+posterior_model4df <- as.data.frame(fit_vbmodel4r)
+posterior_model5df <- as.data.frame(fit_vbmodel5r)
+
+
+posterior_mcmcmodel2df_means <- posterior_mcmcmodel2df%>% summarise_if(is.numeric, mean)
+
+row.names(posterior_mcmcmodel2df_means) <- c("mean")
+
+posterior_mcmcmodel2df_sd <- posterior_mcmcmodel2df %>% summarise_if(is.numeric, sd)
+
+row.names(posterior_mcmcmodel2df_sd) <- c("sd")
+
+posterior_mcmcmodel2df_meansd <- rbind(posterior_mcmcmodel2df_means, posterior_mcmcmodel2df_sd)
+
+rm(posterior_mcmcmodel2df_means, posterior_mcmcmodel2df_sd)
+
+posterior_mcmcmodel2df_meansd <- posterior_mcmcmodel2df_meansd
+
+save(posterior_mcmcmodel2df_meansd, file = "posterior_mcmcmodel2df_meansd.RData")
+
+```
+
+TRACE PLOTS
+```{R}
+#AVERAGE DISTRIBUTION PLOTS WINNING MODEL
+
+posterior_mcmcmodel2 <- as.matrix(fit_mcmcmodel2)
+posterior_mcmcmodel2df <- as.data.frame(posterior_mcmcmodel2)
+
+#another way that works for mcmc is:
+#plot(fit_mcmcmodel3, plotfun = "trace", pars = c("muI", "sdI"), inc_warmup = TRUE)
+
+#Model 2 winning model
+traceplot(fit_mcmcmodel2, pars=c('muI','sdI')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue"))+ labs(title = "Effort Model 2") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_mcmcmodel2, pars=c('muE','sdE')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 2") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_mcmcmodel2, pars=c('muR','sdR')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 2") + theme(plot.title = element_text(hjust = 0.5))
+
+
+#Model 1
+traceplot(fit_mcmcmodel1, pars=c('muI','sdI')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 1") + theme(plot.title = element_text(hjust = 0.5))
+
+
+#Model 3
+traceplot(fit_mcmcmodel3, pars=c('muI','sdI'), inc_warmup = TRUE) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 3") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_mcmcmodel3, pars=c('lp__'), inc_warmup = TRUE) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 3") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_mcmcmodel3, pars=c('muE','sdE')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 3") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_mcmcmodel3, pars=c('muE2','sdE2')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 3") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_mcmcmodel3, pars=c('muR','sdR')) + scale_colour_manual(values = c("#B48EAD", "#A3BE8C", "#EBCB8B", "lightskyblue")) + labs(title = "Effort Model 3") + theme(plot.title = element_text(hjust = 0.5))
+
+
+#Model 4
+traceplot(fit_vbmodel4r, pars=c('muI','sdI')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 4") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_vbmodel4r, pars=c('muE','sdE')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 4") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_vbmodel4r, pars=c('muR','sdR')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 4") + theme(plot.title = element_text(hjust = 0.5))
+
+#Model 5
+traceplot(fit_vbmodel5r, pars=c('muI','sdI')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 5") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_vbmodel5r, pars=c('muE','sdE')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 5") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_vbmodel5r, pars=c('muR','sdR')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 5") + theme(plot.title = element_text(hjust = 0.5))
+
+traceplot(fit_vbmodel5r, pars=c('muE2','sdE2')) + scale_colour_manual(values = c("lightskyblue")) + labs(title = "Effort Model 5") + theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+GROUP PARAMETER PLOTS
+```{r}
+
+#memory.limit(size=30000) #increase the memory if the computer crashed
+
+posterior_mcmcmodel1df <- as.data.frame(fit_mcmcmodel1)
+posterior_mcmcmodel2df <- as.data.frame(fit_mcmcmodel2)
+posterior_mcmcmodel3df <- as.data.frame(fit_mcmcmodel3)
+posterior_model4df <- as.data.frame(fit_vbmodel4r)
+posterior_model5df <- as.data.frame(fit_vbmodel5r)
+
+
+fit_m2 <- rstan::extract(fit_mcmcmodel2, permuted = TRUE)
+ # fit_ss is a list
+## list fit_ss should have elements with name 'sigma', 'mu', 'rho_g', 'rho_l', 'lambda', 'tau'
+
+
+# thetaI
+participant_thetaI_model2<-as.data.frame(t(fit_m2$thetaI)) 
+
+participant_thetaI_model2<-participant_thetaI_model2
+participant_thetaI_model2$thetaI_mean = rowMeans(participant_thetaI_model2)
+
+
+ggplot(participant_thetaI_model2, aes(x=thetaI_mean)) + 
+  geom_histogram(color="black", fill = 'slategray3', binwidth=1.0, size = 0.7) +
+   scale_x_continuous(breaks = seq(from = -10, to = 10, by = 1.0)) +
+  labs(x='thetaI', y='No. of Subjects') +
+  ggtitle("Effort model 2 mean thetaI") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+# thetaR 
+participant_thetaR_model2<-as.data.frame(t(fit_m2$thetaR)) 
+
+participant_thetaR_model2<-participant_thetaR_model2
+participant_thetaR_model2$thetaR_mean = rowMeans(participant_thetaR_model2)
+
+ggplot(participant_thetaR_model2, aes(x=thetaR_mean)) + 
+  geom_histogram(color="black", fill = 'slategray3', binwidth=1.0, size = 0.7) +
+   scale_x_continuous(breaks = seq(from = -2, to = 5, by = 1.0)) +
+  labs(x='thetaR', y='No. of Subjects') +
+  ggtitle("Effort model 2 mean thetaR") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#thetaE
+participant_thetaE_model2<-as.data.frame(t(fit_m2$thetaE)) 
+
+participant_thetaE_model2<-participant_thetaE_model2
+participant_thetaE_model2$thetaE_mean = rowMeans(participant_thetaE_model2)
+
+ggplot(participant_thetaE_model2, aes(x=thetaE_mean)) + 
+  geom_histogram(color="black", fill = 'slategray3', binwidth=0.009, size = 0.5) +
+   scale_x_continuous(breaks = seq(from = -2, to = 5, by = 1.0)) +
+  labs(x='thetaE', y='No. of Subjects') +
+  ggtitle("Effort model 2 mean thetaE") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+VIOLIN PLOT
+```{r}
+# violin plot winning model mean parameters from all chains
+  
+m2_pars_value <- get_posterior_mean(fit_mcmcmodel2, pars=c( 'thetaI', 'thetaR', 'thetaE'))
+
+m2_pars_name  <- as.factor(c(rep('thetaI',547),rep('thetaE',547),rep('thetaR',547)))
+    
+m2_parameters <- data.frame(pars_value=m2_pars_value, pars_name=m2_pars_name)
+  
+  
+   # myconfig <- theme_bw(base_size = 20) +
+    #    theme(panel.grid.major = element_blank(),
+     #         panel.grid.minor = element_blank(),
+      #        panel.background = element_blank() )
+    
+    data_summary <- function(x) {
+        m <- mean(x)
+        ymin <- m-sd(x)
+        ymax <- m+sd(x)
+        return(c(y=m,ymin=ymin,ymax=ymax))
+    }
+    
+# Basic violin plot
+   ggplot(m2_parameters, aes(x= pars_name, y=pars_value.mean.all.chains, fill=pars_name))+
+         geom_violin(trim=FALSE)+ 
+     coord_flip()+   # Rotate the violin plot
+        scale_y_continuous(limits = c(-10, 10))+
+      stat_summary(fun.data=data_summary, geom="pointrange", color="black", size=0.1)+     #Add summary statistics 
+     scale_fill_manual(values = c("#A3BE8C", "#B48EAD", "#EBCB8B"))+
+      labs(x = 'parameter name', y = 'parameter value')+
+      theme_classic()
+    
+    
+ #   ggsave(plot = m2_violinplot, "m2_violin_plot.png", width = 4, height = 4, type = "cairo-png", units = "in")
+
+
+```
+
+
+MODEL 3 DIAGNOSTICS
+```{R}
+
+#np_cp is nuts_mcmcmodel3, lp_ncp is lp_nuts_mcmcmodel3, posterior_cp is posteriorarray_mcmcmodel3
+
+#I’m mostly interested in the traceplot incl_warmup of accept_stat__ and treedepth__ as these are set at a specific target values or maxima not to exceed, and it could be that the sampler is hitting boundaries. The default maximum tree_depth set by Rstan is 10 I believe, and so we may be able to tweak some sampling parameters to get more efficient and better sampling 
+
+mcmcmodel3_diagnostics <- get_sampler_params(fit_mcmcmodel3)
+
+nuts_mcmcmodel3 <- nuts_params(fit_mcmcmodel3)
+
+posteriorarray_mcmcmodel3 <- as.array(fit_mcmcmodel3)
+
+lp_nuts_mcmcmodel3 <- log_posterior(fit_mcmcmodel3)
+
+color_scheme_set("blue")
+mcmc_nuts_divergence(nuts_mcmcmodel3, lp_nuts_mcmcmodel3)
+
+
+mcmc_nuts_treedepth(nuts_mcmcmodel3, lp_nuts_mcmcmodel3, chain = 4)
+mcmc_nuts_acceptance(nuts_mcmcmodel3, lp_nuts_mcmcmodel3, chain = 4, binwidth = NULL)
+
+```
+
+
+
+acceptance <- nuts_mcmcmodel3%>%
+filter(Parameter=='accept_stat__')
+
+
