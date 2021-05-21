@@ -1,0 +1,44 @@
+1. Download the demogrpahics from prolific and rename the file to PROLIFIC.csv
+
+2. Unzip questionnaire data downloaded from Gorilla here!
+
+3. Since there're three different batches, we have to rename the data files downloaded from Gorilla (see below)
+
+For *version 7* questionnaire data, rename to:
+AES.csv
+CONSENT.csv
+COVID.csv
+FATIGUE.csv
+IPAQ.csv
+OCIR.csv
+STAIT.csv
+STAIS.csv
+TEPS.csv
+ZUNG.csv
+MHBASICS.csv
+
+For *version 10* questionnaire data, rename to:
+AES2.csv
+CONSENT2.csv
+COVID2.csv
+FATIGUE2.csv
+IPAQ2.csv
+OCIR2.csv
+STAIT2.csv
+STAIS2.csv
+TEPS2.csv
+ZUNG2.csv
+MHBASICS2.csv
+
+For *version 11* questionnaire data, rename to:
+AES3.csv
+CONSENT3.csv
+COVID3.csv
+FATIGUE3.csv
+IPAQ3.csv
+OCIR3.csv
+STAIT3.csv
+STAIS3.csv
+TEPS3.csv
+ZUNG3.csv
+MHBASICS3.csv

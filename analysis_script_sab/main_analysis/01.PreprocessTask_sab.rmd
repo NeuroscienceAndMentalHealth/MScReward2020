@@ -1,0 +1,1692 @@
+---
+title: "01.PreprocessTask"
+author: "Sab Lam"
+date: "23/03/2021"
+output: html_document
+---
+
+Load packages
+
+```{r setup,cache=FALSE,message=FALSE}
+# library(lme4) # Maybe
+require(knitr)
+library(tidyverse)
+library(dplR)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(patchwork)
+require(aod)
+
+source('src/functions.R')
+# theme_set(theme_classic(base_size = 18))
+theme_set(theme_bw(base_size = 18)) # Set default ggplot theme
+
+mkdir('figures')
+mkdir('data/bonus/')
+
+# Constants
+MEAN_BONUS_PER_TASK = 0.80 # In £
+SD_BONUS_PER_TASK   = 0.40
+DO_SUBJECT_PLOTS = TRUE # Set to TRUE to generate LOADS of plots
+
+# replace spaces in column headers with dots
+read.csv.sensibly = function(filepath, ...){
+  df = read.csv(filepath, ...)
+  colnames(df)[1] <- gsub('^...','',colnames(df)[1])
+  return(df)
+}
+```
+
+
+choose you colours
+
+```{r}
+barfill <- "#FF5857"
+barlines <- "#150902"
+```
+
+
+Utilities needed for loading Gorilla data
+
+```{r message=FALSE}
+# Get task name for each data file.
+all_file_paths =list.files('data/task/raw/', '*.csv', full.names = T)
+
+get_file_task = function(fp){
+  if( file.info(fp)$size < 128 ) return('<EMPTY>')
+  df = read.csv.sensibly(fp, nrows=2)
+  as.character(df$Task.Name[[1]])
+}
+task_df = tibble(
+  fp = all_file_paths,
+  task = map_chr(all_file_paths, get_file_task)
+)
+
+# Get a named list files corresponding to each task,
+# e.g. task_files$Gershman = c('data/raw/data_exp_xxx.csv', data/raw/data_exp_yyy.csv')
+tasks = unique(task_df$task)
+task_files = map(tasks, function(.task) filter(task_df, task==.task)$fp )
+names(task_files) = tasks
+
+# Use this function below when we don't need to do any additional preprocessing before merging
+# Otherwise, use the specific functions defined below for each task
+merge_files = function(filenames){
+  df = map_df(filenames, function(fp){
+    read.csv.sensibly(fp, stringsAsFactors = F) %>% 
+      mutate(filename=fp) %>%
+      filter(Event.Index != 'END OF FILE')# %>%
+      # mutate_all(function(x) na_if(x, 'null')) # Deal with Gorilla's stupid NULL value
+  })
+ names(df) = names(df) %>%
+     str_replace_all('\\.', '_') %>%
+     str_to_lower()
+   df
+}
+
+task_labels = c('effort', 'gamble', 'bandit', 'gershman', 'rewardbias')
+for(task in task_labels){
+  mkdir(sprintf('data/processed/%s', task))
+}
+```
+
+
+# Effort Task
+
+```{r}
+# effort_files = get_file_paths(participant_folder_names, task_labels$effort)
+effort_data = merge_files(task_files$Effort)
+
+effort_data = effort_data %>%
+  select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
+         prolific = participant_public_id, device = participant_device_type, branch = branch_scn8,
+         participant_private_id, participant_status, task_name, task_version,
+         # Skipping counterbalance information for now
+         # Task data
+         odd_right:width) %>%
+  distinct()
+nrow(effort_data)
+# glimpse(head(effort_data))
+  
+# Deal with duplicate rows (bug should be fixed now)
+effort_data = effort_data %>%
+  group_by(subject_nr, phase, trial_nr) %>%
+  mutate(row_rep = 1:n()) %>%
+  filter(row_rep==1) %>%
+  ungroup()
+
+nrow(effort_data)
+glimpse(effort_data)
+```
+
+
+## Sequences
+
+Sequence information is stored as a "list string" on each row,
+e.g. the entry for `sequence` on a single trial could be `"[1,2,3,4,5,6,7,8,9]"`,
+and the entry for `response_keys` could be `"[74,70,74,70,74,70,74,70,74]"`.
+Let's expand these out to a very *wide* data frame, with one column per variable x time step.
+
+```{r}
+long_variables = c('sequence', 'stim_times', 'response_times', 'response_keys')
+short_names = c('d', 'st', 'rt', 'k')
+
+explode_list_string = function(list_string){
+  # Turn a list string into a wide data frame row
+  # I suspect this has become more complicate than it needs to be.
+  res = list_string %>% str_remove_all('\\[|\\]') %>% 
+    str_split(',', simplify = T) %>% 
+    as.numeric() %>%
+    matrix() %>% t()
+  if(length(res)==1) { 
+    res = matrix(NA, 1, 10) 
+  } else if(length(res) < 10) {
+    # Demo trial has only 9. Pad it.
+    pad = matrix(NA, 1, 10-length(res))
+    res = cbind(res, pad)
+  }
+  res
+}
+
+# Produce a list of wide data.frames, one per variable
+sequence_info = map2(long_variables, short_names, function(long_var, short_name){
+  print(sprintf('Converting column `%s` into separate columns beginning with `%s`', long_var, short_name))
+  long_df = effort_data %>% 
+    filter(phase=='main', accepted==1) %>%
+    select(all_of(long_var)) %>%
+    mutate_all(as.character)
+  wide_rows = long_df[[names(long_df)]] %>% map(explode_list_string)
+  wide_df = do.call(rbind, wide_rows) %>% data.frame()
+  names(wide_df) = paste0(short_name, 1:length(names(wide_df)))
+  return(wide_df)
+})
+wide_sequences = do.call(cbind, sequence_info) # One very wide data frame
+sequence_column_names = colnames(wide_sequences) # Useful later
+key_columns = effort_data %>%
+  filter(phase=='main', accepted==1) %>%
+  select(subject_nr, odd_right, trial_nr, n_switches, reward, n_errors)
+wide_sequences = cbind(key_columns, wide_sequences)
+glimpse(wide_sequences)
+```
+
+
+```{r}
+sequences = wide_sequences %>%
+  pivot_longer(cols=matches('[0-9]'),
+               names_to=c('term', 'step'),
+               names_pattern = '([a-z]+)([0-9]+)') %>%
+  pivot_wider(names_from=term, values_from=value)
+
+# Some additional variables
+sequences = sequences %>%
+  rename(
+    key_time = rt,
+    stim_time = st, 
+    digit = d,
+    key = k) %>% 
+  mutate(
+    response_time = key_time - stim_time,
+    is_odd = digit %% 2,
+    said_odd = 1*ifelse(odd_right, key==74, key==70),
+    accuracy = 1*(is_odd == said_odd),
+    step = as.numeric(step))
+
+sequences = sequences %>%
+  group_by(subject_nr, trial_nr) %>%
+  arrange(subject_nr, trial_nr, step) %>%
+  mutate(
+    prev_digit = lag(digit),
+    prev_is_odd = lag(is_odd),
+    same_digit = 1*(digit == prev_digit),
+    same_odd   = 1*(is_odd == prev_is_odd)
+  ) %>%
+  ungroup()
+
+# Pretty names
+sequences = sequences %>%
+  mutate(
+    Odd = ifelse(is_odd, 'Odd', 'Even'),
+    Response = ifelse(said_odd, 'Odd', 'Even'),
+    Same_Digit = ifelse(same_digit, 'Same Digit', 'Different Digit'),
+    Same_Odd = ifelse(same_odd, 'Same Parity', 'Different Parity'))
+
+out = sprintf('data/processed/effort/sequences.csv')
+print(paste('Saving', out))
+write.csv(sequences, out, row.names = F)
+
+# glimpse(head(long_sequences))
+```
+
+
+Now save trial-level data.
+
+```{r}
+out = sprintf('data/processed/effort/data.csv')
+print(paste('Saving', out))
+
+effort_data %>% 
+  select(-all_of(long_variables)) %>%
+  write.csv(out, row.names = F)
+```
+
+
+# EFFORT acceptance
+
+```{r}
+# How many accepted everything, who accepted nothing?
+effort_accepted <- effort_data %>%
+  select(prolific, accepted) %>%
+  na.omit %>%
+  group_by(prolific) %>%
+  summarise(avg=mean(accepted))
+count(effort_accepted,avg==1)
+count(effort_accepted,avg==0)
+effort_not_accepted <- effort_accepted %>%
+  filter(avg < 0.00000001)
+effort_all_accepted <- effort_accepted %>%
+  filter(avg >0.99)
+ glimpse(effort_not_accepted)
+ glimpse(effort_all_accepted)
+ 
+```
+
+#Effort Exclusion
+
+```{r}
+#those with <50% accuracy at 80% OR at 60% coherence 
+#also include where in battery the task was for them
+#NA rt timed out so label  as outcome == timeout
+#if they had >= 2 errors they failed the trial, otherwise success
+
+#80%difficulty trials
+effort_data_success80 <- effort_data %>%
+  filter(difficulty == '80')%>%
+  mutate( outcome = ifelse(is.na(rt), 'Timeout', 
+                           ifelse(n_errors >= 2, 'Failure', 'Success'))
+  )
+
+effort_data_failed80 <- effort_data_success80 %>%
+  mutate(outcome = recode(outcome, 'Timeout'= 0, 'Failure' = 0, 'Success' = 1))%>%
+  group_by(prolific) %>%
+  summarise(avg_success=mean(outcome), device, branch)%>%
+  filter(avg_success < 0.5)
+
+#remove duplicate rows
+effort_data_failed80 <- dplyr::distinct(effort_data_failed80)
+
+
+effort_data_failed80 <- effort_data_failed80%>%
+mutate(branch = recode(branch, 'sequence3'= "3rd task", 'sequence4' = "2nd task", 'sequence5' = "1st task", 'sequence2' = "4th task", 'sequence1' = "5th task"))
+  colnames(effort_data_failed80)[colnames(effort_data_failed80) == 'avg_success'] <- 'avg_success_80'
+
+
+#60% difficulty trials
+effort_data_success60 <- effort_data %>%
+  filter(difficulty == '60')%>%
+  mutate( outcome = ifelse(is.na(rt), 'Timeout', 
+                           ifelse(n_errors >= 2, 'Failure', 'Success'))
+  )
+
+effort_data_failed60 <- effort_data_success60 %>%
+  mutate(outcome = recode(outcome, 'Timeout'= 0, 'Failure' = 0, 'Success' = 1))%>%
+  group_by(prolific) %>%
+  summarise(avg_success=mean(outcome), device, branch)%>%
+  filter(avg_success < 0.5)
+  
+effort_data_failed60 <- dplyr::distinct(effort_data_failed60)
+
+effort_data_failed60 <- effort_data_failed60%>%
+mutate(branch = recode(branch, 'sequence3'= "3rd task", 'sequence4' = "2nd task", 'sequence5' = "1st task", 'sequence2' = "4th task", 'sequence1' = "5th task"))
+  colnames(effort_data_failed60)[colnames(effort_data_failed60) == 'avg_success'] <- 'avg_success_60'
+
+
+#failed >50% overall  
+effort_data_successoverall = effort_data %>%
+  mutate( outcome = ifelse(is.na(rt), 'Timeout',
+                           ifelse(n_errors >= 2, 'Failure', 'Success'))
+  )
+
+effort_data_failedoverall <- effort_data_successoverall %>%
+  mutate(outcome = recode(outcome, 'Timeout'= 0, 'Failure' = 0, 'Success' = 1))%>%
+  group_by(prolific) %>%
+  summarise(avg_success=mean(outcome), device, branch)%>%
+  filter(avg_success < 0.5)
+
+effort_data_failedoverall <- dplyr::distinct(effort_data_failedoverall)
+
+effort_data_failedoverall <- effort_data_failedoverall%>%
+mutate(branch = recode(branch, 'sequence3'= "3rd task", 'sequence4' = "2nd task", 'sequence5' = "1st task", 'sequence2' = "4th task", 'sequence1' = "5th task"))
+  colnames(effort_data_failedoverall)[colnames(effort_data_failedoverall) == 'avg_success'] <- 'avg_success_overall'
+
+write.csv(file=paste0('data/effort_failed50_60%difficulty.csv'),effort_data_failed60,row.names=FALSE)
+
+write.csv(file=paste0('data/effort_failed80%difficulty.csv'),effort_data_failed80,row.names=FALSE)
+
+write.csv(file=paste0('data/effort_failed50_overall.csv'),effort_data_failedoverall,row.names=FALSE)
+
+
+#plot overall average accuracy for 80% difficulty
+effort_data_accuracy80 = effort_data_success80 %>%
+  mutate(outcome = recode(outcome, 'Timeout'= 0, 'Failure' = 0, 'Success' = 1))%>%
+  group_by(prolific) %>%
+  summarise(avg_success=mean(outcome))
+
+ggplot(effort_data_accuracy80, aes(x=avg_success)) + 
+  geom_histogram(aes(fill = ..count..), breaks=seq(0,1,0.1),) +
+  labs(x='Average Success at 80% Difficulty', y='No. of Subjects') +
+  scale_x_continuous(breaks = seq(0, 1, 0.1)) +
+  ggtitle("Effort Accuracy at 80% Difficulty")
+
+#plot overall average accuracy for 60% difficulty
+effort_data_accuracy60 = effort_data_success60 %>%
+  mutate(outcome = recode(outcome, 'Timeout'= 0, 'Failure' = 0, 'Success' = 1))%>%
+  group_by(prolific) %>%
+  summarise(avg_success=mean(outcome))
+
+ggplot(effort_data_accuracy60, aes(x=avg_success)) + 
+  geom_histogram(aes(fill = ..count..), breaks=seq(0,1,0.1),) +
+  labs(x='Average Success at 80% Difficulty', y='No. of Subjects') +
+  scale_x_continuous(breaks = seq(0, 1, 0.1)) +
+  ggtitle("Effort Accuracy at 60% Difficulty")
+```
+
+
+## Bonus Payments
+We explicitly told participants how much they would receive here, so we best stick with it.
+
+```{r}
+bonus_data = effort_data %>%
+  filter(phase=='main', accepted==1, n_errors < 2) %>%
+  mutate(reward = as.numeric(reward) / 100,
+         reward = round(reward, 2))
+
+subj_bonus_data = bonus_data %>%
+  group_by(prolific) %>%
+  summarise(reward = sum(reward))
+
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
+
+```{r}
+effort_data %>%
+  filter(phase=='main') %>%
+  group_by(reward, difficulty) %>%
+  summarise(accepted = mean(accepted), .groups='drop') %>%
+  ggplot(aes(reward, scales::percent(difficulty/100), fill=accepted)) +
+  geom_tile() +
+  scale_fill_gradient2(low='red', mid='white', high='darkgreen', 
+                       limits = c(0, 1)) +
+  labs(x='Reward', y='Difficulty', fill='P(Accept)',
+       title = 'Effort Task: Subject Summaries') +
+  coord_equal()
+```
+
+```{r fig.width=12, fig.height=12}
+effort_subj_summaries = effort_data %>%
+  filter(phase=='main') %>%
+  group_by(subject_nr, reward, difficulty) %>%
+  summarise(accepted = mean(accepted), .groups='drop')
+
+effort_subj_summaries %>%
+  ggplot(aes(reward, scales::percent(difficulty/100), fill=accepted)) +
+  facet_wrap(~subject_nr) +
+  geom_tile() +
+  # scale_fill_viridis_c() 
+  scale_fill_gradient2(low='red', mid='white', high='darkgreen',  midpoint=.5) +
+  labs(x='Reward', y='Difficulty', fill='P(Accept)',
+       title = 'Effort Task: Subject Summaries') +
+  coord_equal()
+```
+
+```{r}
+effort_subj_summaries %>%
+  mutate(Difficulty = paste0('Difficulty: ', difficulty, '%')) %>%
+  ggplot(aes(reward, accepted)) +
+  facet_wrap(~Difficulty) +
+  geom_path(mapping = aes(group = subject_nr), alpha=.5) +
+  stat_summary(fun.data=mean_se, geom='ribbon', fill = 'skyblue') +
+  stat_summary(fun=mean, geom='path')
+```
+
+Subject plots
+
+```{r}
+df = filter(effort_data, subject_nr == effort_data$subject_nr[[1]]) # Get one subject
+
+generate_subject_effort_plot = function(.subject_nr, filename=NA, show=F){
+  df = effort_data %>%
+    filter(subject_nr == subject_nr) %>%
+    arrange(utc_timestamp) %>%
+    mutate(total_trial_nr = 1:n())
+
+  df_means = df %>%
+    filter(phase=='main') %>%
+    group_by(subject_nr, reward, difficulty) %>%
+    summarise(accepted = mean(accepted), .groups='drop')
+  
+  g_tile = df_means %>% 
+    ggplot(aes(reward, scales::percent(difficulty/100), fill=accepted)) +
+    geom_tile() +
+    scale_fill_gradient2(low='red', mid='white', high='darkgreen',  midpoint=.5, limits = c(0, 1)) +
+    labs(x='Reward', y='Difficulty', fill='P(Accept)') +
+    coord_equal()
+  
+  .max_rt = tail(df$max_rt, 1) / 1000
+  g_rt = df %>%
+    filter(phase == 'calibration' | accepted == 1) %>%
+    ggplot(aes(total_trial_nr, rt / 1000, color=phase)) +
+    geom_point() +
+    geom_hline(yintercept = .max_rt, linetype = 'dashed') +
+    lgnd(.95, .95) +
+    theme(legend.background = element_blank()) +    
+    labs(x = 'Trial Number', y = 'Seq Time (s)',
+         color = 'Phase', caption = 'Line shows time allowed after calibration')
+  
+  g_trial = df %>%
+    filter(phase == 'main') %>%
+    ggplot(aes(trial_nr, accepted)) +
+    geom_point() +
+    stat_smooth(method = 'glm', 
+                method.args = list(family=binomial),
+                formula = y ~ splines::ns(x, 5)) +
+    scale_y_continuous(breaks = c(0, 1), labels = c('Reject', 'Accept')) +
+    labs(x = 'Trial Number', y = 'Decision')
+  
+  # Combine subplots using pathwork
+  g_combined = g_tile + (g_rt / g_trial) +
+    plot_layout(widths = c(2, 5)) +
+    plot_annotation(title = sprintf('Subject %i | P(Accept) = %.2f', effort_data$subject_nr, mean(df$accepted, na.rm=T)))
+  
+  if(is.na(filename) == F){
+    ggsave(filename, g_combined,
+           width = 12, height = 6)
+  } 
+  if(show){
+    return(g_combined)
+  }
+}
+effort_subject_nrs = unique(effort_data$subject_nr)
+```
+
+Try one    
+
+```{r fig.width=12, fig.height=6}
+  generate_subject_effort_plot(effort_subject_nr[1], show=T)
+```
+
+```{r}
+mkdir('figures/effort/subjects')
+if(DO_SUBJECT_PLOTS){
+  for(s in effort_subject_nrs){
+    fn = sprintf('figures/effort/subjects/%i.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_effort_plot(s, fn)
+  }
+}
+```
+
+
+For subject-level summaries, let's fit a GLMM: 
+`logit(accept) ~ 1 + reward + difficulty + interaction`.
+This is a reasonable approximation to the more sophisticated model Vincent will be fitting.
+
+Update: Actually, this is too complicated for this script.
+Commenting it out for now, but will put it in the proper Effort task analysis script later.
+
+```{r}
+# effort_model = glmer(accepted ~ 1 + reward + difficulty + reward:difficulty +
+#                        (1 + reward + difficulty + reward:difficulty | subject_nr),
+#                      data = effort_data, family = binomial())
+```
+
+
+# Gambles
+```{r}
+load_file = function(filename){
+  read.csv.sensibly(filename) %>%
+    mutate(response = as.character(response)) %>%
+    filter(Event.Index != 'END OF FILE')
+}
+
+gamble_data = map_df(task_files$Gamble, load_file)
+names(gamble_data) = names(gamble_data) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+gamble_data$bet = gamble_data$chose_risky
+
+gamble_data = gamble_data %>%
+  select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
+         prolific = participant_public_id,
+         device = participant_device_type, branch = branch_scn8, 
+         participant_private_id, participant_status, task_name, task_version,
+         # Skipping counterbalance information for now
+         # Task data
+         rt:width) %>%
+  distinct() %>%
+  mutate(bet = chose_risky)
+
+## Some additional columns
+gamble_data = gamble_data %>%
+  group_by(subject_nr) %>%
+  mutate(
+    n_trials = n(),
+    mean_rt = mean(rt, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(
+    chose_risky = ifelse(safe_is_right, chose_right==F, chose_right) * 1,
+    ev_risky = (risky_gain + risky_loss)/2 - safe)
+  gamble_data$event_index = as.numeric(as.character(gamble_data$event_index))
+  
+  
+## remove the second run of participant '5fbe96c8baacbc025a60d10b' who somehow did the task twice/ got double trial
+  
+  gamble_data <- subset(gamble_data, event_index<46) 
+
+  nrow(gamble_data)
+glimpse(head(gamble_data))
+```
+
+```{r}
+out = sprintf('data/processed/gamble/data.csv')
+print(paste('Saving', out))
+
+write.csv(gamble_data, out, row.names = F)
+```
+
+
+```{r}
+gamble_summaries = gamble_data %>%
+  group_by(subject_nr, type, ev_risky) %>%
+  summarise(bet = mean(bet), .groups = 'drop')
+
+ggplot(gamble_summaries, aes(ev_risky, bet)) +
+  facet_wrap(~type) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dotted', xintercept=0) +
+  stat_summary(fun.data=mean_se) +
+  labs(x = 'V(Risky) - V(Safe)', y = 'P(Risky)')
+```
+
+```{r}
+plot_df = gamble_data %>%
+  group_by(type, risky_gain, risky_loss, safe) %>%
+  summarise(bet = mean(bet), .groups = 'drop')
+
+# Define a function for we can do the same thing for each subjet below.
+generate_gamble_tile_plots = function(plot_df){
+  output = list()
+  output$mixed = plot_df %>%
+    filter(type == 'mixed') %>%
+    ggplot(aes(factor(risky_loss), factor(risky_gain), fill = bet, label = round(bet, 2))) +
+    geom_tile() +
+    geom_text(size = 3) +
+    scale_fill_gradient2(low='red', mid='white', high='darkgreen',  midpoint=.5, limits = c(0, 1)) +
+    labs(x = 'Risky Gain', y = 'Risky Loss', fill = 'P(Bet)',
+         title = 'Mixed')
+  
+  output$gain = plot_df %>%
+    filter(type == 'gain') %>%
+    ggplot(aes(factor(risky_gain), factor(safe), fill = bet, label = round(bet, 2))) +
+    geom_tile() + 
+    geom_text(size = 3) +
+    scale_fill_gradient2(low='red', mid='white', high='darkgreen',  midpoint=.5, limits = c(0, 1)) +
+    labs(x = 'Risky Gain', y = 'Safe Gain', fill = 'P(Bet)', title = 'Gain')
+  
+  output$loss = plot_df %>%
+    filter(type == 'loss') %>%
+    ggplot(aes(factor(risky_loss), factor(safe), fill = bet, label = round(bet, 2))) +
+    geom_tile() +
+    geom_text(size = 3) +
+    scale_fill_gradient2(low='red', mid='white', high='darkgreen',  midpoint=.5, limits = c(0, 1)) +
+    labs(x = 'Risky Loss', y = 'Safe Loss', fill = 'P(Bet)', title = 'Loss')
+  return(output)
+}
+```
+
+
+```{r fig.width=10, fig.height=3}
+gs = generate_gamble_tile_plots(plot_df)
+gs$gain + no_legend() +
+  gs$loss + no_legend() +
+  gs$mixed +
+  plot_layout(width = c(1, 1, 1))
+```
+
+## Bonus
+
+```{r}
+# For each subject, get the total EV of all the responses they chose
+subj_bonus_data = gamble_data %>%
+  mutate(ev_chosen = ifelse(bet, (risky_gain + risky_loss) / 2, safe)) %>%
+  group_by(prolific) %>%
+  summarise(ev = sum(ev_chosen), .groups = 'drop') %>%
+  mutate(z_ev = scale(ev, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_ev * SD_BONUS_PER_TASK,
+         reward = round(reward, 2)) %>%
+  arrange(ev)
+
+# hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
+```{r}
+ ggplot(gamble_data, aes(ev_risky, bet, group = subject_nr)) +
+   facet_wrap(~type) +
+   geom_hline(linetype='dashed', yintercept=.5) +
+   geom_vline(linetype='dotted', xintercept=0) +
+   binomial_smooth(se = F, color = 'black') +
+   labs(x = 'V(Risky) - V(Safe)', y = 'P(Risky)')
+```
+
+
+Subject plots
+
+```{r}
+df = filter(gamble_data, subject_nr == gamble_data$subject_nr[[1]]) # Get one subject (for debugging)
+
+generate_subject_gamble_plot = function(.subject_nr, filename=NA, show=F){
+  df = gamble_data %>%
+    filter(subject_nr == .subject_nr)
+
+  plot_df = df %>%
+    group_by(type, risky_gain, risky_loss, safe) %>%
+    summarise(bet = mean(chose_risky), .groups = 'drop')
+  tile_gs = generate_gamble_tile_plots(plot_df)
+  
+  g_psychometric = ggplot(df, aes(ev_risky, bet)) +
+    facet_wrap(~type) +
+    geom_hline(linetype='dashed', yintercept=.5) +
+    geom_vline(linetype='dotted', xintercept=0) +
+    binomial_smooth(se=F) +
+    stat_summary(fun.data=mean_se, geom='point') +
+    labs(x = 'V(Risky) - V(Safe)', y = 'P(Risky)') 
+  
+  g_rt = df %>%
+    ggplot(aes(trial_nr, rt / 1000, color=type)) +
+    geom_point() +
+    lgnd(.95, .95) +
+    theme(legend.background = element_blank()) +    
+    labs(x = 'Trial Number', y = 'RT (s)', color = 'Type')
+  
+  g_trial = df %>%
+    ggplot(aes(trial_nr, bet)) +
+    geom_point() +
+    stat_smooth(method = 'glm', 
+                method.args = list(family=binomial),
+                formula = y ~ splines::ns(x, 5)) +
+    scale_y_continuous(breaks = c(0, 1), labels = c('Safe', 'Risky')) +
+    labs(x = 'Trial Number', y = 'Decision')
+  
+  # Combine subplots using pathwork
+  top_row = tile_gs$gain + no_legend() +
+    tile_gs$loss + no_legend() +
+    tile_gs$mixed +
+    plot_layout(width = c(1, 1, 1))
+  g_combined = top_row / g_psychometric / g_rt / g_trial +
+    # plot_layout(widths = c(2, 5)) +
+    plot_annotation(title = sprintf('Subject %i | P(Bet) = %.2f', .subject_nr, mean(df$bet)))
+  
+  if(is.na(filename) == F){
+    ggsave(filename, g_combined,
+           width = 12, height = 12)
+  } 
+  if(show){
+    return(g_combined)
+  }
+}
+gamble_subject_nrs = unique(gamble_data$subject_nr)
+```
+
+Try one    
+```{r fig.width=12, fig.height=12}
+generate_subject_gamble_plot(gamble_subject_nrs[1], show=T)
+```
+
+```{r}
+mkdir('figures/gamble/subjects')
+if(DO_SUBJECT_PLOTS){
+  for(s in gamble_subject_nrs){
+    fn = sprintf('figures/gamble/subjects/%i.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_gamble_plot(s, fn)
+  }
+}
+```
+`
+# Gamble Exclusions
+```{r}
+# probability of changing response (always same side)
+gamble_prob_choseright <- gamble_data %>%
+  select(prolific, device, branch, chose_right)%>%
+  na.omit %>%
+  group_by(prolific) %>%
+  summarise(prob_choseright=mean(chose_right),prolific, device, branch) %>% 
+  mutate(branch = recode(branch, 'sequence2'= "5th task", 
+                         'sequence3' = "4th task", 
+                         'sequence4' = "3rd task", 
+                         'sequence5' = "2nd task", 
+                         'sequence1' = "1st task"))
+gamble_prob_choseright <- dplyr::distinct(gamble_prob_choseright)
+
+# distribution 
+ggplot(gamble_prob_choseright, aes(x=prob_choseright)) +
+  geom_histogram(aes(y=..count..), breaks=seq(0,1,0.05),
+                 colour = barlines, fill = barfill) +
+  scale_x_continuous(name = "P(always right)",
+                     breaks=seq(0,1,0.1)) +
+  scale_y_continuous(name="No. of participants",
+                     breaks=seq(0,150,10))+
+  ggtitle("Gamble: no variation in response (left vs right)") +
+  theme_bw() +
+  geom_vline(xintercept = 0.9, size= 1, colour = "red", linetype = "dashed") +
+  geom_vline(xintercept = 0.1, size= 1, colour = "red", linetype = "dashed")
+  
+```
+
+```{r}
+# Excluding those who always choose the right side
+gamble_always_choseright <- gamble_prob_choseright%>%
+#change the exclusion criteria here, currently it's 90% choosing right card 
+filter(prob_choseright > 0.9) 
+```
+
+```{r}
+# Excluding those who always choose the left side
+gamble_always_choseleft <- gamble_prob_choseright%>%
+#change the exclusion criteria here, currently it's 90% choosing left card 
+filter(prob_choseright < 0.1)
+```
+
+```{r}
+# probability of always risky
+gamble_prob_choserisky <- gamble_data %>%
+  select(prolific,  device, branch, chose_risky)%>%
+  na.omit %>%
+  mutate(branch = recode(branch, 'sequence2'= "5th task", 
+                         'sequence3' = "4th task", 
+                         'sequence4' = "3rd task", 
+                         'sequence5' = "2nd task", 
+                         'sequence1' = "1st task")) %>%
+  group_by(prolific) %>%
+  summarise(prob_choserisky=mean(chose_risky),prolific, device, branch) 
+gamble_prob_choserisky <- dplyr::distinct(gamble_prob_choserisky)
+
+# distribution 
+ggplot(gamble_prob_choserisky, aes(x=prob_choserisky)) +
+  geom_histogram(aes(y=..count..), breaks=seq(0,1,0.05),
+                 colour = barlines, fill = barfill) +
+  scale_x_continuous(name = "P(always risky)",
+                     breaks=seq(0,1,0.1)) +
+  scale_y_continuous(name="No. of participants") +
+  ggtitle("Gamble: probability of choosing the risky bet") +
+  theme_bw() +
+  geom_vline(xintercept = 0.9, size= 1, colour = "red", linetype = "dashed") +
+  geom_vline(xintercept = 0.1, size= 1, colour = "red", linetype = "dashed")
+  
+```
+
+
+
+```{r}
+# Gain catches
+gamble_gaincatch <- gamble_data %>%
+  select(prolific,  device, branch, chose_risky, risky_gain, safe, type)%>%
+  na.omit %>%
+  mutate(branch = recode(branch, 'sequence2'= "5th task", 
+                         'sequence3' = "4th task", 
+                         'sequence4' = "3rd task", 
+                         'sequence5' = "2nd task", 
+                         'sequence1' = "1st task")) %>%  
+  group_by(prolific) %>%
+  mutate(gaincatchvalue = safe - risky_gain)%>%
+  #only look at gain trials and trials where one should always choose safe
+  filter(type== 'gain', gaincatchvalue >= 0)%>%
+  summarise(risky_gaincatch=mean(chose_risky),prolific, device, branch) 
+
+# distribution 
+gamble_gaincatch <- dplyr::distinct(gamble_gaincatch)
+ggplot(gamble_gaincatch, aes(x=risky_gaincatch)) +
+  geom_histogram(aes(y=..count..), breaks=seq(0,1,0.05),
+                 colour = barlines, fill = barfill) +
+  scale_x_continuous(name = "P(risky)",
+                     breaks=seq(0,1,0.1)) +
+  scale_y_continuous(name="No. of participants") +
+  ggtitle("Gamble: (Sub)optimal response on 'gain catches' where safe is 'correct'") +
+  theme_bw() +
+  geom_vline(xintercept = 0.1, size= 1, colour = "red", linetype = "dashed") 
+  
+```
+
+```{r}
+# Excluding those who always fail the gain catch, where the safe option that's always "correct"
+gamble_failed_gaincatch <- gamble_gaincatch
+  names(gamble_failed_gaincatch)[names(gamble_failed_gaincatch) == "risky_gaincatch"] <- "prob_nonsensible_gaincatch"
+#change the exclusion criteria here, currently it's failing at least 2 out of 3 
+  gamble_failed_gaincatch <- gamble_failed_gaincatch%>%
+filter(prob_nonsensible_gaincatch > 0.5)
+```
+
+
+```{r}
+# Loss catches
+gamble_losscatch <- gamble_data %>%
+  select(prolific,  device, branch, chose_risky, risky_loss, safe, type)%>%
+  na.omit %>%
+  mutate(branch = recode(branch, 'sequence2'= "5th task", 
+                         'sequence3' = "4th task", 
+                         'sequence4' = "3rd task", 
+                         'sequence5' = "2nd task", 
+                         'sequence1' = "1st task")) %>%  
+  group_by(prolific) %>%
+  mutate(losscatchvalue = safe - risky_loss)%>%
+  #only look at loss trials and trials where one should always choose risky
+  filter(type== 'loss', losscatchvalue <= 0)%>%
+  summarise(risky_losscatch=mean(chose_risky),prolific, device, branch) 
+
+# distribution 
+gamble_losscatch <- dplyr::distinct(gamble_losscatch)
+ggplot(gamble_losscatch, aes(x=risky_losscatch)) +
+  geom_histogram(aes(y=..count..), breaks=seq(0,1,0.05),
+                 colour = barlines, fill = barfill) +
+  scale_x_continuous(name = "P(risky)",
+                     breaks=seq(0,1,0.1)) +
+  scale_y_continuous(name="No. of participants") +
+  ggtitle("Gamble: (Sub)optimal response on 'loss catches' where risky is 'correct'") +
+  theme_bw() +
+  geom_vline(xintercept = 0.9, size= 1, colour = "red", linetype = "dashed") 
+  
+```
+
+```{r}
+# Excluding those who always fail the loss catch, where the risky option that's always "correct"
+gamble_failed_losscatch <- gamble_losscatch%>%
+  mutate(prob_nonsensible_losscatch = 1 - risky_losscatch)
+#change the exclusion criteria here, currently it's failing at least 2 out of 3 
+  gamble_failed_losscatch <-  gamble_failed_losscatch %>%
+      select(prolific,device, branch, prob_nonsensible_losscatch)%>%
+filter(prob_nonsensible_losscatch > 0.5)
+```
+
+# Reward Bias
+```{r}
+load_file = function(filename){
+  read.csv.sensibly(filename) %>%
+    # mutate(response = as.character(response)) %>%
+    filter(Event.Index != 'END OF FILE')
+}
+
+reward_data = map_df(task_files$RewardBias, load_file)
+names(reward_data) = names(reward_data) %>%
+  str_replace_all('\\.', '_') %>%
+  str_to_lower()
+
+
+reward_data = reward_data %>%
+  select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
+         prolific = participant_public_id, device = participant_device_type, branch = branch_scn8,
+         participant_private_id, participant_status, task_name, task_version,
+         # Skipping counterbalance information for now
+         # Task data
+         bias_right:width) %>%
+  distinct()
+
+# Extra columns
+reward_data = reward_data %>%
+  mutate(
+    Block = ifelse(loss_block, 'Loss', 'Gain'),
+    total_trial_nr = ifelse(block_nr==0, trial_nr, 49+trial_nr),
+    # Was target pointing in bias direction?
+    pro_bias = ifelse(bias_right, target_right, 1-target_right),
+    said_bias = ifelse(bias_right, said_right, 1-said_right))
+reward_data = reward_data %>%
+  mutate(coh_right = ifelse(target_right, coherence, 1-coherence),
+         coh_bias = ifelse(bias_right, coh_right, 1-coh_right),
+         signal = coh_bias - .5,
+         split_half = ifelse(total_trial_nr %% 2 == 0, 'Even', 'Odd'))
+
+
+out = 'data/processed/rewardbias/data.csv'
+write.csv(reward_data, out, row.names = F)
+
+glimpse(reward_data)
+```
+
+## Bonus
+
+```{r}
+subj_bonus_data = reward_data %>%
+  group_by(prolific) %>%
+  summarise(winnings = sum(reward), .groups = 'drop') %>%
+  mutate(z_winnings = scale(winnings, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_winnings * SD_BONUS_PER_TASK,
+         reward = round(reward, 2))
+
+# hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
+```{r}
+plot_details = function(  evenly_spaced = F){
+  if(evenly_spaced){
+    sx = scale_x_continuous(labels = scales::percent)
+  } else {
+    sx = scale_x_continuous(breaks=unique(reward_data$coh_bias), labels=scales::percent)
+  }
+
+  list(labs(x='Signal towards good side', y='Chose good side'),
+       sx,
+       scale_y_continuous(label=scales::percent),
+       geom_hline(linetype='dashed', yintercept=.5),
+       geom_vline(linetype='dashed', xintercept=.5))
+}
+
+```
+
+```{r}
+ggplot(reward_data, aes(coh_bias, said_bias)) +
+  stat_summary(fun.data=mean_se) +
+  binomial_smooth() +
+  plot_details()
+```
+
+```{r fig.width=16, fig.height=16}
+ggplot(reward_data, aes(coh_bias, said_bias)) +
+  facet_wrap(~subject_nr) +
+  # geom_point(position = position_jitter(width=0, height=.05), alpha=.5) +
+  stat_summary(fun.data=mean_se) +
+  binomial_smooth() +
+  plot_details()
+```
+
+Subject plots
+
+```{r}
+df = filter(reward_data, subject_nr == reward_data$subject_nr[[1]]) # Get one subject (for debugging)
+
+generate_subject_reward_plot = function(.subject_nr, filename=NA, show=F){
+  df = reward_data %>%
+    filter(subject_nr == .subject_nr)
+
+  g_psychometric = ggplot(df, aes(coh_bias, said_bias)) +
+    stat_summary(fun.data=mean_se) +
+    binomial_smooth() +
+    plot_details()
+
+  g_rt = df %>%
+    ggplot(aes(trial_nr, rt / 1000)) +
+    geom_point() +
+    lgnd(.95, .95) +
+    theme(legend.background = element_blank()) +    
+    labs(x = 'Trial Number', y = 'RT (s)', color = 'Type')
+  
+  g_trial = df %>%
+    ggplot(aes(trial_nr, said_bias)) +
+    geom_point() +
+    stat_smooth(method = 'glm', 
+                method.args = list(family=binomial),
+                formula = y ~ splines::ns(x, 5)) +
+    scale_y_continuous(breaks = c(0, 1), labels = c('Poor\nside', 'Rich\nside')) +
+    labs(x = 'Trial Number', y = 'Decision')
+  
+  # Combine subplots using pathwork
+  g_combined = g_psychometric + (g_rt / g_trial) +
+    plot_layout(widths = c(2, 5)) +
+    plot_annotation(title = sprintf('Subject %i | P(Rich Side) = %.2f', .subject_nr, mean(df$said_bias)))
+  
+  if(is.na(filename) == F){
+    ggsave(filename, g_combined,
+           width = 12, height = 4)
+  } 
+  if(show){
+    return(g_combined)
+  }
+}
+reward_subject_nrs = unique(reward_data$subject_nr)
+```
+
+```{r}
+mkdir('figures/reward/subjects')
+if(DO_SUBJECT_PLOTS){
+  for(s in reward_subject_nrs){
+    fn = sprintf('figures/reward/subjects/%i.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_reward_plot(s, fn)
+  }
+}
+```
+
+
+#calculate those who chose the same side
+
+```{r}
+rb_same_response <- reward_data %>%
+  select(subject_nr, said_right) %>%
+  group_by(subject_nr) %>%
+  summarise(avg_said_right=mean(said_right)) %>%
+  filter(avg_said_right > 0.98 | avg_said_right < 0.02)
+```
+
+
+#Exclusion for Reward Bias
+#those with <50% accuracy at 80% coherence congruent trials
+
+```{r}
+#average accuracy at 0.8 coherence when bias side is equal to target side (congruent trials)
+rb_accuracy_congruent <- reward_data %>%
+  select(prolific, said_right, accuracy, coherence, bias_right, target_right, device, branch) %>%
+  filter(coherence >= 0.8, bias_right==target_right) %>%
+  group_by(prolific) %>%
+  summarise(avg_accuracy=mean(accuracy), device, branch)
+  
+rb_accuracy_congruent <- rb_accuracy_congruent%>%
+  mutate(branch = recode(branch, 'sequence3'= "5th task", 'sequence4' = "4th task", 'sequence5' = "3rd task", 'sequence2' = "1st task", 'sequence1' = "2nd task"))
+ rb_accuracy_congruent <- dplyr::distinct(rb_accuracy_congruent)
+
+
+ggplot(rb_accuracy_congruent, aes(x=avg_accuracy)) + 
+  geom_histogram(aes(fill = ..count..), breaks=seq(0,1,0.1),) +
+  labs(x='Average Accuracy at 0.8 coherence', y='No. of Subjects') +
+  scale_x_continuous(breaks = seq(0, 1, 0.1)) +
+  ggtitle("RB Congruent Accuracy at 0.8 ")+
+  geom_vline(xintercept = 0.3, size= 1, colour = "red", linetype = "dashed")
+  
+
+#filter (keep) participants with <50% average accuracy for congruent trials at 0.8 coherence
+rb_inaccurate_congruent80<-rb_accuracy_congruent%>%
+ filter(avg_accuracy<0.3)
+ 
+ #remove dupicate rows
+ rb_inaccurate_congruent80 <- dplyr::distinct(rb_inaccurate_congruent80)
+  colnames(rb_inaccurate_congruent80)[colnames(rb_inaccurate_congruent80) == 'rb_avg_accuracy80'] <- 'avg_accuracy'
+
+write.csv(file=paste0('data/effort_rb_inaccurate_congruent80.csv'),rb_inaccurate_congruent80,row.names=FALSE)
+
+```
+
+# Bandit
+
+```{r}
+bandit_data = merge_files(task_files$Bandits)
+
+bandit_data = bandit_data %>%
+  select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
+         prolific = participant_public_id, device = participant_device_type, branch = branch_scn8,
+         participant_private_id, participant_status, task_name, task_version,
+         # Skipping counterbalance information for now
+         # Task data
+         permutation:width) %>%
+  distinct()
+
+# Deal with duplicate rows
+bandit_data = bandit_data %>%
+  group_by(subject_nr, trial_nr) %>%
+  mutate(row_rep = 1:n()) %>%
+  filter(row_rep==1) %>%
+  ungroup()
+# Any other preprocessing
+# ...
+bandit_data = bandit_data %>%
+  arrange(subject_nr, trial_nr) %>%
+  group_by(subject_nr) %>%
+  mutate(
+    n_trials = n(),
+    score = cumsum(is_gain) - cumsum(is_loss),
+    rt = t_response - t_start_trial,
+    mean_rt = mean(rt, na.rm=T)) %>%
+  ungroup()
+
+bandit_data = mutate(bandit_data,
+              half = ifelse(trial_nr < 100, 'First', 'Second'),
+              outcome = is_gain - is_loss,
+              result = factor(is_gain - is_loss + 10*is_gain*is_loss,
+                              levels=c(-1, 0, 1, 10),
+                              labels=c('Loss', 'None', 'Gain', 'Both')))
+
+bandit_data = bandit_data %>%
+  arrange(subject_nr, trial_nr) %>%
+  group_by(subject_nr) %>%
+  mutate( 
+    prev_result = lag(result),
+    prev_outcome = lag(outcome),
+    change = ifelse(bandit_id == lag(bandit_id), 0, 1),
+    Change = ifelse(change, 'Switch', 'Stay')) %>%
+  ungroup()
+
+out = 'data/processed/bandit/data.csv'
+write.csv(bandit_data, out, row.names = F)
+
+glimpse(bandit_data)
+```
+
+
+## Bonus
+
+```{r}
+subj_bonus_data = bandit_data %>%
+  group_by(prolific) %>%
+  summarise(winnings = sum(outcome), .groups = 'drop') %>%
+  mutate(z_winnings = scale(winnings, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_winnings * SD_BONUS_PER_TASK,
+         reward = round(reward, 2))
+
+# hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(bandit_data, aes(trial_nr, score, color = factor(subject_nr))) +
+  geom_hline(linetype='dashed', yintercept=0) +
+  no_legend() +
+  # geom_point() +
+  geom_path() 
+```
+
+```{r}
+df = bandit_data %>%
+  filter(trial_nr > 0) %>%
+  group_by(subject_nr, prev_result) %>%
+  summarise(change = mean(change)) 
+
+ggplot(df, aes(prev_result, change)) +
+  stat_summary(fun.data=mean_se,
+               position = position_nudge(x = .25)) +
+  geom_point(alpha=.5) +
+  geom_hline(yintercept=c(0, .5, 1),
+             linetype=c('dashed', 'dotted', 'dashed')) +
+  labs(x='Previous outcome', y='P(Change Box)')
+```
+
+```{r fig.width=12, fig.height=12}
+bandit_data %>%
+  filter(trial_nr > 0) %>%
+  ggplot(aes(prev_result, change)) +
+  facet_wrap(~subject_nr) +
+  stat_summary(fun.data=mean_se) +
+  tilt_x_ticks() +
+  geom_hline(yintercept=c(0, .5, 1), linetype='dashed') +
+  labs(x='Previous outcome', y='P(Change Box)')
+```
+
+
+Don't really have any good visualitions for this one, so skipping it the individual files.
+
+# Gershman
+
+```{r}
+gershman_data = merge_files(task_files$Gershman)
+
+gershman_data = gershman_data %>%
+  select(event_index, utc_timestamp, utc_date, experiment_version, tree_node_key,
+         prolific = participant_public_id, device = participant_device_type, branch = branch_scn8,
+         participant_private_id, participant_status, task_name, task_version,
+         # Skipping counterbalance information for now
+         # Task data
+         rt:width) %>%
+  distinct() %>%
+  arrange(subject_nr, block_nr, trial_nr)
+
+gershman_data = gershman_data %>%
+  group_by(subject_nr) %>%
+  mutate(total_trial_nr = 1:n()) %>%
+  ungroup()
+
+# Deal with duplicate rows
+gershman_data = gershman_data %>%
+  group_by(subject_nr, block_nr, trial_nr) %>%
+  mutate(row_rep = 1:n()) %>%
+  filter(row_rep==1) %>%
+  ungroup()
+
+glimpse(gershman_data)
+```
+
+
+```{r}
+# Any other preprocessing
+gershman_data = gershman_data %>%
+  mutate(opt_left = ifelse(opt_left=='r', 'Risky', 'Safe'),
+         opt_right = ifelse(opt_right=='r', 'Risky', 'Safe'),
+         choice = ifelse(response=='left', opt_left, opt_right),
+         chose_risky = ifelse(choice=='Risky', 1, 0))
+
+gershman_data = gershman_data %>%
+  mutate(subject_nr = factor(subject_nr),
+         value_difference = value_right - value_left, 
+         chose_right = as.numeric(response=='right'),
+         condition = paste(opt_left, opt_right))
+
+gershman_data = gershman_data %>%
+  arrange(subject_nr, block_nr, trial_nr) %>%
+  group_by(subject_nr, block_nr) %>%
+  mutate(
+    n_trials = n(),
+    score = cumsum(reward),
+    prev_reward = lag(reward),
+    change = ifelse(response == lag(response), 0, 1),
+    mean_rt = mean(rt, na.rm=T)) %>%
+  ungroup()
+```
+
+
+## Bonus
+
+```{r}
+subj_bonus_data = gershman_data %>%
+  group_by(prolific) %>%
+  summarise(winnings = sum(reward), .groups = 'drop') %>%
+  mutate(z_winnings = scale(winnings, center = T, scale = T),
+         reward = MEAN_BONUS_PER_TASK + z_winnings * SD_BONUS_PER_TASK,
+         reward = round(reward, 2))
+
+# hist(subj_bonus_data$reward)
+```
+
+```{r}
+print(sprintf('Total bonus: £%.2f | Mean = £%.2f', 
+              sum(subj_bonus_data$reward), mean(subj_bonus_data$reward)))
+```
+
+Copy and paste this into Prolific
+
+```{r, comment=NA}
+subj_bonus_data %>%
+  select(prolific, reward) %>%
+  format_csv(col_names = F) %>% 
+  cat()
+```
+
+Do Kalman filtering (see `src/Functions.R`)
+
+I made a mistake in the implementation here.
+The average value of each option is drawn from a Normal distribution with a standard deviation of 100,
+and the noise added to the risky options on each trial is drawn from a Normal with SD 16. 
+Sam reports the variances in the original paper, not SD, 
+so these values need to be changed to 10 and 4 respectively. 
+
+This mistake made the task too easy, since the mean difference between options was inflated more
+than the noise within options. 
+Fixing this will probably make people a bit slower, but probably not enough to worry about.
+
+For this analysis, we just set the Kalman filter parameters to those actually used.
+
+```{r}
+# gershman_data = gershman_data %>% select(-all_of(names(latents)))
+latents = kalman_filter(gershman_data, q_initial = 100^2, q_safe = .001, q_risky = 16^2)
+# Transformations (see Gershman papers)
+gershman_data = cbind(gershman_data, latents)
+```
+
+```{r}
+out = 'data/processed/gershman/data.csv'
+write.csv(gershman_data, out, row.names = F)
+
+glimpse(gershman_data)
+```
+
+
+```{r}
+g = ggplot(gershman_data, aes(kalman_value_difference, chose_right, color=condition, fill=condition)) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dashed', xintercept=0) +
+  binomial_smooth(se=T) +
+  coord_cartesian(xlim = c(-100, 100)) +
+  labs(x='Value Difference', y='Chose Right', fill='Condition', color='Condition')
+g
+```
+
+```{r}
+g + coord_cartesian(xlim = c(-20, 20))
+```
+
+```{r fig.width = 12, fig.height = 12}
+ggplot(gershman_data, aes(kalman_value_difference, chose_right, color=condition, fill=condition)) +
+  facet_wrap(~subject_nr) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dashed', xintercept=0) +
+  binomial_smooth(se=F) +
+  coord_cartesian(xlim = c(-100, 100)) +
+  labs(x='Value Difference', y='Chose Right', fill='Condition', color='Condition')
+```
+
+```{r}
+ggplot(filter(gershman_data, trial_nr > 0),  
+       # aes(prev_reward, change, color=subject_nr, fill=subject_nr)) +
+       aes(prev_reward, change, group = subject_nr)) +
+  # facet_wrap(~subject_nr) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dashed', xintercept=0) +
+  binomial_smooth(se = F) +
+  # binomial_smooth(formula = y ~ splines::ns(x, 2)) +
+  labs(x='Previous outcome', y='P(Change Response)', color='Subject', fill='Subject')
+```
+
+
+```{r}
+ggplot(gershman_data, aes(trial_nr+1, change, group=subject_nr)) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  # stat_summary(fun.data=mean_se, geom='ribbon', alpha=.5, fill='skyblue') +
+  stat_summary(fun=mean, geom='path') +
+  coord_cartesian(ylim=c(0, 1)) +
+  scale_x_continuous(breaks=2:10) +
+  labs(x='Trial', y='P(Change Response)')
+```
+
+## Subject plots
+
+```{r}
+df = filter(gershman_data, subject_nr == gershman_data$subject_nr[[1]]) # Get one subject (for debugging)
+
+generate_subject_gershman_plot = function(.subject_nr, filename=NA, show=F){
+  df = gershman_data %>%
+    filter(subject_nr == .subject_nr)
+
+  g_psychometric = ggplot(df, 
+                          aes(kalman_value_difference, chose_right, 
+                              color=condition, fill=condition)) +
+    geom_hline(linetype='dashed', yintercept=.5) +
+    geom_vline(linetype='dashed', xintercept=0) +
+    binomial_smooth(se=F) +
+    coord_cartesian(xlim = c(-100, 100)) +
+    labs(x='Value Difference', y='Chose Right', fill='Condition', color='Condition')
+  
+  g_change = ggplot(filter(df, trial_nr > 0),  
+                    aes(prev_reward, change, color = condition, fill = condition)) +
+    geom_hline(linetype='dashed', yintercept=.5) +
+    geom_vline(linetype='dashed', xintercept=0) +
+    binomial_smooth(se = F) +
+    labs(x='Previous outcome', y='P(Change Response)', color='Subject', fill='Subject')
+  
+  g_change2 = ggplot(df, aes(trial_nr+1, change, group=subject_nr)) +
+    geom_hline(linetype='dashed', yintercept=.5) +
+    stat_summary(fun.data=mean_se, geom='ribbon', alpha=.5, fill='skyblue') +
+    stat_summary(fun=mean, geom='path') +
+    coord_cartesian(ylim=c(0, 1)) +
+    scale_x_continuous(breaks=2:10) +
+    labs(x='Trial', y='P(Change Response)')
+  
+  # Combine subplots using pathwork
+  g_combined = (g_psychometric + no_legend() + g_change) / g_change2 +
+    # plot_layout(widths = c(2, 5)) +
+    plot_annotation(title = sprintf('Subject %s', as.character(.subject_nr)))
+  
+  if(is.na(filename) == F){
+    ggsave(filename, g_combined,
+           width = 12, height = 6)
+  } 
+  if(show){
+    return(g_combined)
+  }
+}
+gershman_subject_nrs = unique(gershman_data$subject_nr) %>% as.character()
+```
+
+```{r fig.width=12, fig.height=6}
+generate_subject_gershman_plot(gershman_subject_nrs[1], show = T)
+```
+
+```{r}
+mkdir('figures/gershman/subjects')
+if(DO_SUBJECT_PLOTS){
+  for(s in gershman_subject_nrs){
+    fn = sprintf('figures/gershman/subjects/%s.svg', s)
+    print(paste('Saving', fn))
+    generate_subject_gershman_plot(s, fn)
+  }
+}
+```
+
+
+GERSHMAN exclusion?
+```{r}
+
+# made same response on the easy condition 
+gershman_same <- gershman_data %>%
+  select(prolific, chose_right, condition, tree_node_key) %>%
+  filter(str_detect(condition,"Safe Safe")) %>%
+  group_by(prolific) %>%
+  summarise(avg_chose_right = mean(chose_right), prolific, tree_node_key) %>%
+  mutate(tree_node_key = recode(tree_node_key, 'task-jfzn'="3", 'task-jk92'="2", 'task-ob69'="1", 'task-hkas'="5", 'task-h5yd'="4" ))
+
+# distribution 
+ggplot(gershman_same, aes(x=avg_chose_right)) +
+  geom_histogram(aes(y=..count..), breaks=seq(0,1,0.05),
+                 colour = barlines, fill = barfill) +
+  scale_x_continuous(name = "Chose Right",
+                     breaks=seq(0,1,0.1)) +
+  scale_y_continuous(name="No. of Participants") +
+  ggtitle("Gershman, Safe Safe Condition") +
+  theme_bw() +
+  geom_vline(xintercept = 0.1, size= 1, colour = "red", linetype = "dashed") + 
+  geom_vline(xintercept = 0.9, size= 1, colour = "red", linetype = "dashed")
+
+
+gershman_same <- gershman_same %>%
+  filter(!between(avg_chose_right, 0.1, 0.9)) %>%
+  distinct(prolific, avg_chose_right, tree_node_key)
+
+```
+```{r}
+gershman_wrong_option <- gershman_data %>%
+  select(prolific, kalman_value_difference, value_right, value_left, chose_right, condition, tree_node_key) %>%
+  filter(str_detect(condition,"Safe Safe")) %>%
+  mutate(value_difference=value_right-value_left) %>%
+  mutate(tree_node_key = recode(tree_node_key, 'task-jfzn'="3", 'task-jk92'="2", 'task-ob69'="1", 'task-hkas'="5", 'task-h5yd'="4" )) %>%
+  rowid_to_column()
+
+gershman_wrong_option["x"] <- NA
+
+for (i in gershman_wrong_option$rowid){  
+if(gershman_wrong_option[i,]$value_difference > 0 & gershman_wrong_option[i,]$chose_right == 1){
+  gershman_wrong_option[i,]$x = 1
+  } else if (gershman_wrong_option[i,]$value_difference > 0 & gershman_wrong_option[i,]$chose_right == 0){
+  gershman_wrong_option[i,]$x = 0
+  } else if (gershman_wrong_option[i,]$value_difference < 0 & gershman_wrong_option[i,]$chose_right == 0){
+  gershman_wrong_option[i,]$x = 1  
+  } else if (gershman_wrong_option[i,]$value_difference < 0 & gershman_wrong_option[i,]$chose_right == 1){
+    gershman_wrong_option[i,]$x = 0
+  }
+}
+gershman_wrong_option <- gershman_wrong_option %>%
+  select(prolific,x,tree_node_key) %>%
+  group_by(prolific) %>%
+  summarise(avg_chose_higher_value_bandit = mean(x),prolific,tree_node_key) %>%
+  distinct(prolific, avg_chose_higher_value_bandit, tree_node_key)
+
+```
+
+```{r}
+# new chunk cuz not running that for loop again every time i change the plot or the exclusion cut off
+
+ggplot(gershman_wrong_option, aes(x=avg_chose_higher_value_bandit)) +
+  geom_histogram(aes(y=..count..), breaks=seq(0,1,0.05),
+                 colour = barlines, fill = barfill) +
+  scale_x_continuous(name = "Chose higher value bandit",
+                     breaks=seq(0,1,0.1)) +
+  scale_y_continuous(name="No. of Participants") +
+  ggtitle("Gershman, Safe Safe Condition") +
+  theme_bw() 
+
+gershman_wrong_option_2 <- gershman_wrong_option %>%
+  filter(avg_chose_higher_value_bandit < 0.5)
+```
+  
+  
+Total Uncertainty plots
+
+```{r}
+gershman_tu_data <- gershman_data %>%
+filter(condition != 'Safe Risky', condition != 'Risky Safe')
+gershman_tu_data <- gershman_tu_data
+g = ggplot(gershman_tu_data, aes(kalman_value_difference, chose_right, color=condition, fill=condition)) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dashed', xintercept=0) +
+  binomial_smooth(se=T) +
+  coord_cartesian(xlim = c(-20, 20)) +
+  labs(x='Value Difference', y='Chose Right', fill='Condition', color='Condition')
+g
+```
+
+
+Relative Uncertainty plots
+
+```{r}
+gershman_ru_data <- gershman_data %>%
+filter(condition != 'Safe Safe', condition != 'Risky Risky')
+gershman_ru_data <- gershman_ru_data
+g = ggplot(gershman_ru_data, aes(kalman_value_difference, chose_right, color=condition, fill=condition)) +
+  geom_hline(linetype='dashed', yintercept=.5) +
+  geom_vline(linetype='dashed', xintercept=0) +
+  binomial_smooth(se=T) +
+  coord_cartesian(xlim = c(-20, 20)) +
+  labs(x='Value Difference', y='Chose Right', fill='Condition', color='Condition')
+g
+```
+
+
+```{r}
+# Effort completion times 
+
+effort_time <- effort_data %>%
+  select(event_index,t_end_trial,t_start_experiment) %>%
+  filter(event_index=='77') %>%
+  mutate(completion_time = t_end_trial-t_start_experiment) %>%
+  mutate(completion_time = completion_time/1000) %>%
+  mutate(completion_time = completion_time/60)
+
+ggplot(effort_time, aes(x=completion_time)) + 
+  geom_histogram(aes(fill = ..count..), binwidth=0.5,) +
+  labs(x='Time Taken \n(minutes)', y='No. of Subjects') +
+  scale_x_continuous(breaks = seq(10, 35, 5), limits=c(10,35)) +
+  ggtitle("Effort Time")
+```
+
+<!-- probit regression -->
+<!-- ```{r} -->
+<!-- gershman_data_clean <- read.csv(file = "data/processed/gershman/data.csv") -->
+
+<!-- gershmanprobit <- glm(chose_risky ~  kalman_value_difference + kalman_sigma_difference + kalman_total_uncertainty, family = binomial(link = "probit"),  -->
+<!--     data = gershman_data_clean) -->
+
+<!-- ## model summary -->
+<!-- summary(gershmanprobit) -->
+
+<!-- ``` -->
+
+CATCH QUESTIONS: 11 failed >1
+```{R}
+excluded_catch <- overall_catch%>%
+mutate(catch50 = ifelse(catch50 == '50', 1, 0))%>%
+  mutate(catch75 = ifelse(catch75 == '75', 1, 0))%>%
+  mutate(catch25 = ifelse(catch25 == '25', 1, 0))
+excluded_catch$total_correct = (excluded_catch$catch50 + excluded_catch$catch75 + excluded_catch$catch25)
+  catch_failed <- excluded_catch[(excluded_catch$total_correct=="0" | excluded_catch$total_correct=="1"),]
+  colnames(catch_failed)[colnames(catch_failed) == 'participant_public_id'] <- 'prolific'
+
+catch_failed <- catch_failed%>%
+  select(prolific,  total_correct)
+  colnames(catch_failed)[colnames(catch_failed) == 'total_correct'] <- 'correct_qaire_catch'
+```
+
+Exclusion by Gamble P(always right), failed gain catch and failed loss catch
+```{r}
+exclusion_gamble <- gamble_failed_gaincatch %>%
+  full_join(gamble_failed_losscatch, by = c("prolific","device","branch"))%>%
+  full_join(gamble_always_choseright, by = c("prolific","device","branch")) %>%
+  left_join(gamble_prob_choserisky, by = c("prolific","device","branch"))
+  colnames(exclusion_gamble)[colnames(exclusion_gamble) == 'branch'] <- 'branch_gamble'
+```
+
+Exclusion by Effort
+```{r}
+exclusion_effort <- effort_data_failed60 %>%
+  full_join(effort_data_failed80, by = c("prolific","device","branch"))%>%
+  full_join(effort_data_failedoverall, by = c("prolific","device","branch"))
+  colnames(exclusion_effort)[colnames(exclusion_effort) == 'branch'] <- 'branch_effort'
+```
+
+Exclusion by RB
+```{r}
+exclusion_rb <- rb_inaccurate_congruent80
+  colnames(exclusion_rb)[colnames(exclusion_rb) == 'branch'] <- 'branch_reward'
+```
+
+#Exclusion by Gamble, Effort,RB and questionnaire catch items
+```{r}
+#exclusion_overall <-  exclusion_gamble %>%
+#  full_join(exclusion_effort, by = c("prolific","device")) %>%
+  exclusion_overall <-  exclusion_effort %>%
+  full_join(exclusion_rb, by = c("prolific","device")) %>%
+  full_join(catch_failed, by = c("prolific"))
+  
+write.csv(file=paste0('data/exclusion_overall.csv', exclusion_overall, row.names = F))
+```
+
+
+FIND THE MISSING PARTICIPANT
+
+```{R}
+bandit_prolific <- read.csv(file = "data/processed/bandit/data.csv")
+effort_prolific <- read.csv(file = "data/processed/effort/data.csv")
+gamble_prolific <- read.csv(file = "data/processed/gamble/data.csv")
+gershman_prolific <- read.csv(file = "data/processed/gershman/data.csv")
+rewardbias_prolific <- read.csv(file = "data/processed/rewardbias/data.csv")
+
+bandit_prolific <- bandit_prolific%>%
+select(prolific)
+bandit_prolific <- distinct(bandit_prolific)
+bandit_prolific$bandit = "bandit"
+
+effort_prolific <- effort_prolific%>%
+select(prolific)
+effort_prolific <- distinct(effort_prolific)
+effort_prolific$effort = "effort"
+
+gamble_prolific <- gamble_prolific%>%
+select(prolific)
+gamble_prolific <- distinct(gamble_prolific)
+gamble_prolific$gamble = "gamble"
+
+gershman_prolific <- gershman_prolific%>%
+select(prolific)
+gershman_prolific <- distinct(gershman_prolific)
+gershman_prolific$gershman = "gershman"
+
+rewardbias_prolific <- rewardbias_prolific%>%
+select(prolific)
+rewardbias_prolific <- distinct(rewardbias_prolific)
+rewardbias_prolific$rewardbias = "rewardbias"
+
+missing_participants <- bandit_prolific%>% 
+  full_join(effort_prolific, by = c("prolific"))%>%
+  full_join(gamble_prolific, by = c("prolific"))%>%
+  full_join(gershman_prolific, by = c("prolific"))%>%
+  full_join(rewardbias_prolific, by = c("prolific"))
+
+missing_participants <- missing_participants%>% 
+  filter(if_any(everything(), ~ is.na(.)))
+```
+
+
+Remove dodgy RB participants
+
+```{r}
+# excluded_IDs <- c(
+# reward_data <- reward_data %>%
+#  filter(!prolific %in% excluded_IDs) 
+```
+
+
+
+
+
+

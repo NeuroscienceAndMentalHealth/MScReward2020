@@ -1,0 +1,15 @@
+Put the models downloaded from Github here.
+
+
+/GamblingTask/models/model_1/model_1.stan
+/GamblingTask/models/model_2/model_2.stan
+/GamblingTask/models/model_3/model_3.stan
+/GamblingTask/models/model_4/model_4.stan
+/GamblingTask/models/model_5/model_5.stan
+
+
+/ExploreTask/models/model_1/model_1.stan
+/ExploreTask/models/model_2/model_2.stan
+/ExploreTask/models/model_3/model_3.stan
+/ExploreTask/models/model_4/model_4.stan
+/ExploreTask/models/model_5/model_5.stan

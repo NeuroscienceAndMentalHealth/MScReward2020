@@ -1,0 +1,123 @@
+---
+title: "03b.GershmanModellingBRMS"
+author: "Sab Lam"
+date: "20/05/2021"
+output: html_document
+---
+
+Load packages
+
+```{r setup, include=FALSE, cache = FALSE}
+require(knitr)
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(rstan)
+library(ggplot2)
+library(loo)
+
+source('src/functions.R')
+
+install.packages("brms")
+library(brms)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Read in processed gershman data
+
+```{r}
+gershman_data <- read.csv(file = "data/processed/gershman/data.csv")%>%
+  mutate(trial_nr = trial_nr+1) #somehow the gershman data has trial numbers 0-299, we're now changing the trial numbers to 1-300
+
+# gershman_data_clean %>% count(!is.na(total_trial_nr), prolific) 
+
+# all people get 300 trials but 3 participants got unusual total_trial_nr (the total_trial_nr looks like participants are skipping every other trial no.)
+
+######  check using the following script which are commented out  ###### 
+# gershman_data_clean$correct_total_trial_nr = rep(1:300,547)
+# gershman_data_clean$total_trial_check = gershman_data_clean$total_trial_nr - gershman_data_clean$correct_total_trial_nr
+# gershman_data_clean <- gershman_data_clean%>%
+#   filter(total_trial_check != 0)%>%
+#   dplyr::distinct(prolific)
+
+gershman_data <- gershman_data%>%
+   mutate(total_trial_nr = rep(1:300,547))%>%
+  
+   select(prolific,
+          total_trial_nr, 
+          chose_right, 
+          kalman_value_difference, 
+          kalman_sigma_difference, 
+          kalman_weighted_value_difference)%>% 
+   mutate_at(vars(starts_with('kalman')), scale)%>%  # z transformation/standardisation
+  
+  rename(participant_id = prolific,
+         V              = kalman_value_difference,
+         RU             = kalman_sigma_difference,
+         VTU            = kalman_weighted_value_difference,
+         choice         = chose_right)
+```
+
+
+Gershman Models
+
+```{r}
+#Run make_stancode (changing brm to that) and we can see what it's doing in a language that's more comparable with the other models
+
+model2<-brm(formula = choice ~ V + (1+ V|participant_id),
+            data = gershman_data,
+            family = bernoulli(probit),
+            warmup = 500,
+            iter = 2000,
+            chains = 2,
+            inits = "random",
+            cores = 2,
+            seed = 123,
+            prior(normal(0, 2), class = Intercept))
+
+save.image(file = "Gershman_brms_model2.RData")
+
+
+model3<-brm(formula = choice ~ VTU + (1 + VTU|participant_id),
+            data=gershman_data,
+            family = bernoulli(probit),
+            warmup = 500,
+            iter = 2000,
+            chains = 2,
+            inits= "random",
+            cores=2,
+            seed = 123,
+            prior(normal(0, 2), class = Intercept))
+
+save.image(file = "Gershman_brms_model3.RData")
+
+
+model4<-brm(formula = choice ~ V + RU + (1 + V + RU|participant_id),
+            data=gershman_data,
+            family = bernoulli(probit),
+            warmup = 500,
+            iter = 2000,
+            chains = 2,
+            inits= "random",
+            cores=2,
+            seed = 123,
+            prior(normal(0, 2), class = Intercept))
+
+save.image(file = "Gershman_brms_model4.RData")
+
+
+model5<-brm(formula = choice ~ V + RU + VTU + (1 + V + RU + VTU|participant_id),
+            data=gershman_data,
+            family = bernoulli(probit),
+            warmup = 500,
+            iter = 2000,
+            chains = 2,
+            inits= "random",
+            cores=2,
+            seed = 123,
+            prior(normal(0, 2), class = Intercept))
+
+save.image(file = "Gershman_brms_model5.RData")
+```

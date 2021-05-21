@@ -1,0 +1,663 @@
+---
+title: "03.GambleModellingMain"
+author: "Sab Lam"
+date: "10/05/2021"
+output: html_document
+---
+
+Load packages
+
+```{r setup, include=FALSE, cache = FALSE}
+require(knitr)
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(rstan)
+library(ggplot2)
+library(loo)
+library(bayesplot)
+
+install.packages("hBayesDM", dependencies=TRUE)
+library(hBayesDM)
+
+install.packages("wesanderson")
+library("wesanderson")
+
+source('src/functions.R')
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Read in processed gamble data
+
+```{r}
+gamble_data_clean <- read.csv(file = "data/processed/gamble/data.csv")%>%
+  mutate(trial_nr = trial_nr+1) #somehow the javascript for gamble task has trial numbers 0-44, we're now changing the trial numbers to 1-45
+```
+
+
+Number of subjects 
+
+```{r}
+nSubject <- gamble_data_clean%>%
+  select(prolific)%>%
+  dplyr::distinct(prolific)
+
+N = as.numeric(nrow(nSubject))
+```
+
+
+Max number of trials 
+
+```{r}
+nTrial <- gamble_data_clean%>%
+  select(trial_nr)
+
+T = as.numeric(max(nTrial))
+```
+
+
+Tsubj: Max number of trials per participants (1D array of ints)
+
+```{r}
+Tsubj <- gamble_data_clean%>%
+  select(prolific, trial_nr, chose_right)
+
+Tsubj <- Tsubj%>%
+  pivot_wider(names_from = trial_nr, values_from = chose_right)
+
+Tsubj <- Tsubj %>% remove_rownames %>% column_to_rownames(var = "prolific")
+
+Tsubj$max_trial = rowSums(!is.na(Tsubj))
+
+Tsubj <- Tsubj%>%
+  select(max_trial)
+
+Tsubj <- as.data.frame(t(Tsubj))
+
+Tsubj <- t(Tsubj)
+
+Tsubj = as.vector(Tsubj)
+```
+
+
+Gamble: whether participant gambled or not (1, 0 respectively) on a given trial (Row: participant, column: Trial)
+
+```{r}
+gamble <- gamble_data_clean%>%
+  select(prolific, trial_nr, chose_risky)
+
+gamble <- gamble%>%
+  pivot_wider(names_from = trial_nr, values_from = chose_risky)
+
+gamble <- gamble %>% remove_rownames %>% column_to_rownames(var = "prolific")
+
+gamble <- as.data.frame(t(gamble))
+
+gamble <- t(gamble)
+```
+
+
+Cert: Sure option for each participant and trial (Row: participant, columns: trials)
+
+```{r}
+cert <- gamble_data_clean%>%
+  select(prolific, trial_nr, safe)
+
+cert <- cert%>%
+  pivot_wider(names_from = trial_nr, values_from = safe)
+
+cert <- cert %>% remove_rownames %>% column_to_rownames(var = "prolific")
+
+cert <- as.data.frame(t(cert))
+
+cert <- t(cert)
+```
+
+
+Gain: Value for the gain in the gamble for each participant and trial (Row: participant, columns: trials)
+
+```{r}
+gain <- gamble_data_clean%>%
+  select(prolific, trial_nr, risky_gain)
+
+gain <- gain%>%
+  pivot_wider(names_from = trial_nr, values_from = risky_gain)
+
+gain <- gain %>% remove_rownames %>% column_to_rownames(var = "prolific")
+
+gain <- as.data.frame(t(gain))
+
+gain <- t(gain)
+```
+
+
+Loss: Value for the loss in the gamble for each participant and trial (Row: participant, columns: trials)
+
+```{r}
+loss <- gamble_data_clean%>%
+  select(prolific, trial_nr, risky_loss)
+
+loss <- loss%>%
+  pivot_wider(names_from = trial_nr, values_from = risky_loss)
+
+loss <- loss %>% remove_rownames %>% column_to_rownames(var = "prolific")
+
+loss <- abs(loss)
+
+loss <- as.data.frame(t(loss))
+
+loss <- t(loss)
+```
+
+
+Create a datalist of all data
+
+```{r}
+GambledataList<-list(N=N,
+               T=T,
+               Tsubj=Tsubj,
+               gamble=gamble,
+               cert=cert,
+               gain=gain,
+               loss=loss)
+```
+
+
+(VB) Load the model into an object
+
+```{r}
+gamble_model1 <- stan_model("Models/GamblingTask/models/model_1/model_1.stan", verbose = TRUE)
+
+gamble_model2 <- stan_model("Models/GamblingTask/models/model_2/model_2.stan", verbose = TRUE)
+
+gamble_model3 <- stan_model("Models/GamblingTask/models/model_3/model_3.stan", verbose = TRUE)
+
+gamble_model4 <- stan_model("Models/GamblingTask/models/model_4/model_4.stan", verbose = TRUE)
+
+gamble_model5 <- stan_model("Models/GamblingTask/models/model_5/model_5.stan", verbose = TRUE)
+```
+
+
+(MCMC) Load the model into an object
+
+```{r}
+model1File <- ("Models/GamblingTask/models/model_1/model_1.stan")
+
+model2File <- ("Models/GamblingTask/models/model_2/model_2.stan")
+
+model3File <- ("Models/GamblingTask/models/model_3/model_3.stan")
+
+model4File <- ("Models/GamblingTask/models/model_4/model_4.stan")
+
+model5File <- ("Models/GamblingTask/models/model_5/model_5.stan")
+```
+
+
+(VB) Load the model into an object and run model 1
+
+```{r}
+startTime = Sys.time(); print(startTime) 
+
+fit_gamble1_vb<- vb(gamble_model1,
+                data    = GambledataList,
+                seed    = 1450154626) 
+
+endTime = Sys.time(); print(endTime) 
+cat("It took",as.character.Date(endTime - startTime), "to fit Gamble Model 1\n")
+
+summary(fit_gamble1_vb)
+```
+
+
+(VB) Load the model into an object and run model 2
+
+```{r}
+startTime = Sys.time(); print(startTime) 
+
+fit_gamble2_vb<- vb(gamble_model2,
+                data    = GambledataList,
+                seed    = 1450154626) 
+
+endTime = Sys.time(); print(endTime) 
+cat("It took",as.character.Date(endTime - startTime), "to fit Gamble Model 2\n")
+
+summary(fit_gamble2_vb)
+```
+
+
+(VB) Load the model into an object and run model 3
+
+```{r}
+startTime = Sys.time(); print(startTime) 
+
+fit_gamble3_vb<- vb(gamble_model3,
+                data    = GambledataList,
+                seed    = 1450154626) 
+
+endTime = Sys.time(); print(endTime) 
+cat("It took",as.character.Date(endTime - startTime), "to fit Gamble Model 3\n")
+
+summary(fit_gamble3_vb)
+```
+
+
+(VB) Load the model into an object and run model 4
+
+```{r}
+startTime = Sys.time(); print(startTime) 
+
+fit_gamble4_vb<- vb(gamble_model4,
+                data         = GambledataList,
+                seed         = 1450154626) 
+
+endTime = Sys.time(); print(endTime) 
+cat("It took",as.character.Date(endTime - startTime), "to fit Gamble Model 4\n")
+
+summary(fit_gamble4_vb)
+```
+
+
+(VB) Load the model into an object and run model 5
+
+```{r}
+startTime = Sys.time(); print(startTime) 
+
+fit_gamble5_vb<- vb(gamble_model5,
+                data    = GambledataList,
+                seed    = 1450154626) 
+
+endTime = Sys.time(); print(endTime) 
+cat("It took",as.character.Date(endTime - startTime), "to fit Gamble Model 5\n")
+
+summary(fit_gamble5_vb)
+```
+
+
+(MCMC) model 3
+
+```{r}
+nIter<-2000  #how many samples will be taken
+nChains<- 4    #how many starting points of the sampler (robot) (sequences of visits)
+nWarmup<- floor(nIter/2) #how many of the samples will be discarded as warmups
+nThin<- 1   #how many samples will be included/skipped
+
+cat("Estimating", model3File, "model... \n")
+    startTime = Sys.time(); print(startTime)
+    cat("Calling", nChains, "simulations in Stan... \n")
+
+#Use this to see how long the modelling takes and each simulation
+fit_gamble3_MCMC <- stan(model3File,
+                   data    = GambledataList,
+                   chains  = nChains,
+                   iter    = nIter,
+                   warmup  = nWarmup,
+                   thin    = nThin,
+                   init    = "random",
+                   seed    = 1450154626) #so you can replicate the model
+
+# save.image(file = "Gamble_MCMC_model3.RData")
+
+ cat("Finishing", model3File, "model simulation ... \n")
+    endTime = Sys.time(); print(endTime)
+    cat("It took",as.character.Date(endTime - startTime), "\n")
+
+# Model Summary and Diagnostics, use this to see how long the modelling takes and each simulation
+ print(fit_gamble3_MCMC) #look at the model output
+
+ summary(fit_gamble3_MCMC)
+```
+
+
+(MCMC) model 4
+
+```{r}
+nIter<-2000  #how many samples will be taken
+nChains<- 4    #how many starting points of the sampler (robot) (sequences of visits)
+nWarmup<- floor(nIter/2) #how many of the samples will be discarded as warmups
+nThin<- 1   #how many samples will be included/skipped
+
+cat("Estimating", model4File, "model... \n")
+    startTime = Sys.time(); print(startTime)
+    cat("Calling", nChains, "simulations in Stan... \n")
+
+#Use this to see how long the modelling takes and each simulation
+fit_gamble4_MCMC <- stan(model4File,
+                   data    = GambledataList,
+                   chains  = nChains,
+                   iter    = nIter,
+                   warmup  = nWarmup,
+                   thin    = nThin,
+                   init    = "random",
+                   seed    = 1450154626) #so you can replicate the model
+
+save.image(file = "Gamble_MCMC_model4.RData")
+
+ cat("Finishing", model4File, "model simulation ... \n")
+    endTime = Sys.time(); print(endTime)
+    cat("It took",as.character.Date(endTime - startTime), "\n")
+
+# Model Summary and Diagnostics, use this to see how long the modelling takes and each simulation
+ print(fit_gamble4_MCMC) #look at the model output
+
+ summary(fit_gamble4_MCMC)
+```
+
+
+(MCMC) model 5
+
+```{r}
+model5File <- ("Models/GamblingTask/models/model_5/model_5.stan")
+
+nIter<-2000  #how many samples will be taken
+nChains<- 4    #how many starting points of the sampler (robot) (sequences of visits)
+nWarmup<- floor(nIter/2) #how many of the samples will be discarded as warmups
+nThin<- 1   #how many samples will be included/skipped
+
+cat("Estimating", model5File, "model... \n")
+    startTime = Sys.time(); print(startTime)
+    cat("Calling", nChains, "simulations in Stan... \n")
+
+#Use this to see how long the modelling takes and each simulation
+fit_gamble5_MCMC <- stan(model5File,
+                   data    = GambledataList,
+                   chains  = nChains,
+                   iter    = nIter,
+                   warmup  = nWarmup,
+                   thin    = nThin,
+                   init    = "random",
+                   seed    = 1450154626) #so you can replicate the model
+
+
+ cat("Finishing", model5File, "model simulation ... \n")
+    endTime = Sys.time(); print(endTime)
+    cat("It took",as.character.Date(endTime - startTime), "\n")
+
+# Model Summary and Diagnostics, use this to see how long the modelling takes and each simulation
+ print(fit_gamble5_MCMC) #look at the model output
+
+ summary(fit_gamble5_MCMC)
+```
+
+
+Model comparisons: LOOIC
+
+```{r}
+# load("Gamble_MCMC_model3.RData")
+
+# extract log_likelihood and compare models
+
+LL1 <- extract_log_lik(fit_gamble1_vb)
+LL2 <- extract_log_lik(fit_gamble2_vb)
+# LL3 <- extract_log_lik(fit_gamble3_vb)
+LL3 <- extract_log_lik(fit_gamble3_MCMC, merge_chains = TRUE)
+LL4 <- extract_log_lik(fit_gamble4_MCMC, merge_chains = TRUE)
+LL5 <- extract_log_lik(fit_gamble5_MCMC, merge_chains = TRUE)
+
+loo_compare(loo(LL1), loo(LL2), loo(LL3), loo(LL4), loo(LL5)) # +ve difference indicates higher predictive accuracy for 2nd model 
+
+
+#Plot model comparison results as a bar chart (or at least as a table)
+
+looic_values <- rbind(loo(LL1)$looic, loo(LL2)$looic, loo(LL3)$looic, loo(LL4)$looic, loo(LL5)$looic) 
+looic_se <- rbind(loo(LL1)$se_looic, loo(LL2)$se_looic, loo(LL3)$se_looic, loo(LL4)$se_looic, loo(LL5)$se_looic) 
+looic_values <- cbind(looic_values, looic_se)
+colnames(looic_values)[2] <- "se_LOOIC"
+colnames(looic_values)[1] <- "LOOIC"
+gamble_LOOICtable <- as.data.frame(looic_values)
+gamble_LOOICtable$LOOIC_against_winning_model = gamble_LOOICtable$LOOIC - gamble_LOOICtable[c(5),c(1)]
+gamble_LOOICtable$gamble_model <- c("model1", "model2", "model3", "model4", "model5")
+
+ggplot(gamble_LOOICtable) +
+    geom_bar(aes(x=gamble_model, y=LOOIC), stat="identity",
+                             colour = "black",  #black outside
+                             size   = 0.8,      #thinner lines
+                             width = 0.5, fill="tomato2") + 
+  labs(title="Model Comparison (Gamble): LOOIC values") +
+  geom_errorbar(aes(x=gamble_model, ymin=LOOIC-se_LOOIC, ymax=LOOIC+se_LOOIC), size = 0.8, width=0.2, colour="black", alpha=0.9, position=position_dodge(.9))
+
+
+ggplot(gamble_LOOICtable) +
+    geom_bar(aes(x=gamble_model, y=LOOIC_against_winning_model), stat="identity",
+                             colour = "black",  #black outside
+                             size   = 0.8,      #thinner lines
+                             width = 0.5, fill="lightsalmon1") + 
+  labs(title="Model Comparison (Gamble): LOOIC against the winning model") +
+  geom_errorbar(aes(x=gamble_model, ymin=LOOIC_against_winning_model-se_LOOIC, ymax=LOOIC_against_winning_model+se_LOOIC), size = 0.8, width=0.2, colour="black", alpha=0.9, position=position_dodge(.9))
+```
+
+
+Model comparisons: BIC 
+
+```{r}
+# number of parameters in model 1 = 1
+BIC_1 = sum(1 * log(T) - 2*colMeans(LL1))
+
+# number of parameters in model 2 = 2
+BIC_2 = sum(2 * log(T) - 2*colMeans(LL2))
+
+# number of parameters in model 3 = 2
+BIC_3 = sum(2 * log(T) - 2*colMeans(LL3))
+
+# number of parameters in model 4 = 3
+BIC_4 = sum(3 * log(T) - 2*colMeans(LL4))
+
+# number of parameters in model 5 = 4
+BIC_5 = sum(4 * log(T) - 2*colMeans(LL5))
+
+# generate a looic table for gamble models
+gamble_BICtable<-rbind(BIC_1, BIC_2, BIC_3, BIC_4, BIC_5) 
+gamble_BICtable<-as.data.frame(gamble_BICtable)
+colnames(gamble_BICtable)<-c("BIC")
+gamble_BICtable$gamble_model  <- c("model1", "model2", "model3", "model4", "model5")
+gamble_BICtable$BIC_against_winning_model = gamble_BICtable$BIC - gamble_BICtable[c(3),c(1)]
+
+gamble_modelcomparison_table <- merge(gamble_BICtable, gamble_LOOICtable, by = "gamble_model")
+
+
+ggplot(gamble_modelcomparison_table) +
+    geom_bar(aes(x=gamble_model, y=BIC), stat="identity",
+                             colour = "black",  #black outside
+                             size   = 0.8,      #thinner lines
+                             width = 0.5, fill="tomato2") + 
+  labs(title="Model Comparison (Gamble): BIC values") 
+
+
+ggplot(gamble_modelcomparison_table) +
+    geom_bar(aes(x=gamble_model, y=BIC_against_winning_model), stat="identity",
+                             colour = "black",  #black outside
+                             size   = 0.8,      #thinner lines
+                             width = 0.5, fill="lightsalmon1") + 
+  labs(title="Model Comparison (Gamble): BIC against the winning model") 
+```
+
+
+All plots for model 3 (winning model on the basis of lowest BIC)
+
+```{r}
+# Print a summary for a fitted model represented by a stanfit object
+gamble_fit3_MCMC_summary <- cbind(as.data.frame(summary(fit_gamble3_MCMC, 
+                                                        pars=c('mu_p','sigma','lambda', 'tau'))$summary),   
+                                  # all chains
+                                  as.data.frame(summary(fit_gamble3_MCMC, 
+                                                        pars=c('mu_p','sigma','lambda', 'tau'))$c_summary)) 
+                                  # individual chains
+gamble_fit3_MCMC_summary$pars_name  <- as.factor(c(rep('mu_p[1]',1),rep('mu_p[2]',1),
+                                                   rep('sigma[1]',1),rep('sigma[2]',1),
+                                                   rep('lambda',548),rep('tau',548)))
+
+
+ggplot(gamble_fit3_MCMC_summary %>%
+          filter(gamble_fit3_MCMC_summary$pars_name == "tau"), aes(x=mean)) + 
+  geom_histogram(color="black", fill = '#FDD262', binwidth=0.1, size = 0.7) +
+   scale_x_continuous(breaks = seq(from = -10, to = 20, by = 0.5)) +
+  labs(x='tau', y='No. of Subjects') +
+  ggtitle("(model 3) tau")
+
+
+ggplot(gamble_fit3_MCMC_summary %>%
+          filter(gamble_fit3_MCMC_summary$pars_name == "lambda"), aes(x=mean)) + 
+  geom_histogram(color="black", fill = '#446455', binwidth=0.1, size = 0.8) +
+   scale_x_continuous(breaks = seq(from = -10, to = 20, by = 0.1)) +
+  labs(x='lambda', y='No. of Subjects') +
+  ggtitle("(model 3) lambda")
+
+# violin plot without group parameters
+    data_summary <- function(x) {
+        m <- mean(x)
+        ymin <- m-sd(x)
+        ymax <- m+sd(x)
+        return(c(y=m,ymin=ymin,ymax=ymax))
+    }
+    
+# Basic violin plot
+    m3_violinplot <- ggplot(gamble_fit3_MCMC_summary %>%
+          filter(gamble_fit3_MCMC_summary$pars_name == "lambda"| 
+                   gamble_fit3_MCMC_summary$pars_name == "tau"), aes(x=pars_name, y=mean, fill=pars_name))+
+         geom_violin(trim=FALSE)+ 
+      coord_flip()+   # Rotate the violin plot
+      stat_summary(fun.data=data_summary, geom="pointrange", color="black", size=0.2)+
+      scale_fill_manual(values=wes_palette(n=4, name="Chevalier1"))
+    
+     m3_violinplot
+     
+    ggsave(plot = m3_violinplot, "m3_violin_plot.png", width = 4, height = 4, type = "cairo-png", units = "in")
+    
+# distribution of group parameters
+pars_gamble_fit3_MCMC <- stan_hist(fit_gamble3_MCMC, pars = c("mu_p","sigma"),
+                        show_density=T, fill = "lightsalmon1")
+
+pars_gamble_fit3_MCMC # view the plot
+
+
+```  
+
+
+All plots for model 5 (winning model on the basis of lowest LOOIC)
+
+```{r}
+# Print a summary for a fitted model represented by a stanfit object
+gamble_fit5_MCMC_summary <- cbind(as.data.frame(summary(fit_gamble5_MCMC, 
+                                                        pars=c('mu_p','sigma','rho_g', 'rho_l', 'lambda', 'tau'))$summary),   
+                                  # all chains
+                                  as.data.frame(summary(fit_gamble5_MCMC, 
+                                                        pars=c('mu_p','sigma','rho_g', 'rho_l', 'lambda', 'tau'))$c_summary)) 
+                                  # individual chains
+gamble_fit5_MCMC_summary$pars_name  <- as.factor(c(rep('mu_p[1]',1),rep('mu_p[2]',1),rep('mu_p[3]',1),rep('mu_p[4]',1),
+                                                   rep('sigma[1]',1),rep('sigma[2]',1),rep('sigma[3]',1),rep('sigma[4]',1),
+                                                   rep('rho_g',548),rep('rho_l',548),rep('lambda',548),rep('tau',548)))
+
+
+# plots for individual parameters
+ggplot(gamble_fit5_MCMC_summary %>%
+          filter(gamble_fit5_MCMC_summary$pars_name == "rho_g"), aes(x=mean)) + 
+  geom_histogram(color="black", fill = '#00A08A', binwidth=0.1, size = 0.8) +
+   scale_x_continuous(breaks = seq(from = -1, to = 2, by = 0.1)) +
+  labs(x='rho_g', y='No. of Subjects') +
+  ggtitle("(model 5) rho_g")
+
+
+ggplot(gamble_fit5_MCMC_summary %>%
+          filter(gamble_fit5_MCMC_summary$pars_name == "rho_l"), aes(x=mean)) + 
+  geom_histogram(color="black", fill = "#F2AD00", binwidth=0.1, size = 0.8) +
+   scale_x_continuous(breaks = seq(from = -1, to = 2, by = 0.1)) +
+  labs(x='rho_l', y='No. of Subjects') +
+  ggtitle("(model 5) rho_l")
+
+
+ggplot(gamble_fit5_MCMC_summary %>%
+          filter(gamble_fit5_MCMC_summary$pars_name == "tau"), aes(x=mean)) + 
+  geom_histogram(color="black", fill = '#F98400', binwidth=0.1, size = 0.7) +
+   scale_x_continuous(breaks = seq(from = -1, to = 11, by = 0.5)) +
+  labs(x='tau', y='No. of Subjects') +
+  ggtitle("(model 5) tau")
+
+
+ggplot(gamble_fit5_MCMC_summary %>%
+          filter(gamble_fit5_MCMC_summary$pars_name == "lambda"), aes(x=mean)) + 
+  geom_histogram(color="black", fill = '#FF0000', binwidth=0.1, size = 0.8) +
+   scale_x_continuous(breaks = seq(from = 0, to = 4, by = 0.1)) +
+  labs(x='lambda', y='No. of Subjects') +
+  ggtitle("(model 5) lambda")
+
+
+# violin plot without group parameters
+    data_summary <- function(x) {
+        m <- mean(x)
+        ymin <- m-sd(x)
+        ymax <- m+sd(x)
+        return(c(y=m,ymin=ymin,ymax=ymax))
+    }
+    
+# Basic violin plot
+    m5_violinplot <- ggplot(gamble_fit5_MCMC_summary %>%
+          filter(gamble_fit5_MCMC_summary$pars_name == "rho_g"| 
+                   gamble_fit5_MCMC_summary$pars_name == "rho_l" |
+                   gamble_fit5_MCMC_summary$pars_name == "lambda"| 
+                   gamble_fit5_MCMC_summary$pars_name == "tau"), aes(x=pars_name, y=mean, fill=pars_name))+
+         geom_violin(trim=FALSE)+ 
+      coord_flip()+   # Rotate the violin plot
+      stat_summary(fun.data=data_summary, geom="pointrange", color="black", size=0.2)+
+      scale_fill_manual(values=wes_palette(n=4, name="Darjeeling1"))
+    
+    m5_violinplot
+    
+    ggsave(plot = m5_violinplot, "m5_violin_plot.png", width = 4, height = 4, type = "cairo-png", units = "in")
+    
+# distribution of group parameters
+pars_gamble_fit5_MCMC <- stan_hist(fit_gamble5_MCMC, pars = c("mu_p","sigma"),
+                        show_density=T, fill = "skyblue")
+
+pars_gamble_fit5_MCMC # view the plot
+
+ggsave(plot = pars_gamble_fit5_MCMC, "pars_gamble_fit5_MCMC.png", width = 4, height = 4, type = "cairo-png", units = "in")
+```  
+
+
+# trace plots
+
+```{r}
+traceplot(fit_gamble1_vb, pars=c('mu_p','sigma')) +  scale_colour_manual(values = wes_palette("Zissou1")) + ggtitle("Trace plot of the model pars (gamble model 1 VB)")
+
+traceplot(fit_gamble2_vb, pars=c('mu_p','sigma'), main = "Gamble model 2 (VB)") +  scale_colour_manual(values = wes_palette("Zissou1")) + ggtitle("Trace plot of the model pars (gamble model 2 VB)")
+
+traceplot(fit_gamble3_vb, pars=c('mu_p','sigma'), main = "Gamble model 3 (VB)") +  scale_colour_manual(values = wes_palette("Zissou1")) + ggtitle("Trace plot of the model pars (gamble model 3 VB)")
+
+traceplot(fit_gamble3_MCMC, pars=c('mu_p','sigma'), main = "Gamble model 3 (MCMC)") +  scale_colour_manual(values = wes_palette("Darjeeling1")) + ggtitle("Trace plot of the model pars (gamble model 3 MCMC)")
+
+traceplot(fit_gamble4_MCMC, pars=c('mu_p','sigma'), main = "Gamble model 4 (MCMC)") +  scale_colour_manual(values = wes_palette("Darjeeling1")) + ggtitle("Trace plot of the model pars (gamble model 4 MCMC)")
+
+traceplot(fit_gamble5_MCMC, pars=c('mu_p','sigma'), main = "Gamble model 5 (MCMC)") +  scale_colour_manual(values = wes_palette("Darjeeling1")) + ggtitle("Trace plot of the model pars (gamble model 5 MCMC)")
+```
+
+
+Extract the mean/average parameter value from the winning model for each individual subject and winning model parameter 
+(in the gambling task that will be : 1 Lamba, 1 Rho_gain, 1 Rho_loss, 1 Tau per participant)
+
+```{r}
+# Model 5, winning model on the basis of lowest LOOIC
+gamble_fit5_MCMC_sbj_summary <- t(gamble_fit5_MCMC_summary)
+
+#remove group-level parameters (first 8 columns) 
+gamble_fit5_MCMC_sbj_summary <- gamble_fit5_MCMC_sbj_summary %>%
+     subset(str_detect(rownames(gamble_fit5_MCMC_sbj_summary), "mean|sd"))
+
+# extract individual parameters
+gamble_fit5_MCMC_sbj_rho_g <- gamble_fit5_MCMC_sbj_summary[,c(1:548)]
+rownames(gamble_fit5_MCMC_sbj_rho_g) = paste("rho_g", rownames(gamble_fit5_MCMC_sbj_rho_g), sep = "_")
+
+gamble_fit5_MCMC_sbj_rho_l <- gamble_fit5_MCMC_sbj_summary[,c(549:1096)]
+rownames(gamble_fit5_MCMC_sbj_rho_l) = paste("rho_l", rownames(gamble_fit5_MCMC_sbj_rho_l), sep = "_")
+
+gamble_fit5_MCMC_sbj_lambda <- gamble_fit5_MCMC_sbj_summary[,c(1097:1644)]
+rownames(gamble_fit5_MCMC_sbj_lambda) = paste("lambda", rownames(gamble_fit5_MCMC_sbj_lambda), sep = "_")
+
+gamble_fit5_MCMC_sbj_tau <- gamble_fit5_MCMC_sbj_summary[,c(1645:2192)]
+rownames(gamble_fit5_MCMC_sbj_tau) = paste("tau", rownames(gamble_fit5_MCMC_sbj_tau), sep = "_")
+
+# final parameter value from the winning model for each individual subject and winning model parameter 
+gamble_fit5_MCMC_sbj_final <- rbind(gamble_fit5_MCMC_sbj_rho_g,gamble_fit5_MCMC_sbj_rho_l,gamble_fit5_MCMC_sbj_lambda,gamble_fit5_MCMC_sbj_tau)
+colnames(gamble_fit5_MCMC_sbj_final)[1:548] = c(1:548)
+```
+
