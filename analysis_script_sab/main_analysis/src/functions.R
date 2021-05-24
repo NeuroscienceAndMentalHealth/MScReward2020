@@ -45,13 +45,14 @@ zeros = function(nrow, ncol){
 #'   m2 (estimated value of right),
 #'   s1 (posterior variance, or uncertainty, for left), and
 #'   s2 (posterior variance for right)
-kalman_filter = function(df, q_initial = 100, q_safe = .0001, q_risky = 16){
+kalman_filter = function(df, q_initial = 100, q_safe = 1, q_risky = 16){
   ## s1 and s2 are variances, not SDs.
   N = nrow(df)
   Q = zeros(N, 2) + q_safe
   # Initial gains
-  Q[df$opt_left == 'Risky', 1] = q_risky
-  Q[df$opt_right == 'Risky', 2] = q_risky
+  stopifnot(df$opt_left %in% c('r', 's'))
+  Q[df$opt_left == 'r', 1] = q_risky
+  Q[df$opt_right == 'r', 2] = q_risky
 
   M = zeros(N, 2)
   S = zeros(N, 2)
@@ -77,7 +78,6 @@ kalman_filter = function(df, q_initial = 100, q_safe = .0001, q_risky = 16){
     err = reward - m[choice];            # prediction error
     m[choice] = m[choice] + k*err;       # posterior mean
     s[choice] = s[choice] - k*s[choice];      # posterior variance
-
   }
   latents = data.frame(
     m1 = M[,1], m2 = M[,2],
@@ -118,16 +118,27 @@ plot_kalman_block = function(block_df){
     geom_label(data=filter(block_df, response=='left'),
               mapping = aes(x = trial_nr + .5,
                             label = reward),
-              y = 110, size = 5, fill = NA) +
+              y = 11, size = 5, fill = NA) +
     geom_label(data=filter(block_df, response=='right'),
               mapping = aes(x = trial_nr + .5,
                             label = reward),
-              y = 110, size = 5, fill = NA) +
-    coord_cartesian(ylim=c(-120, 120)) +
-    scale_x_continuous(breaks=1:10, limits = c(1, 10), expand=c(0, 0)) +
+              y = 11, size = 5, fill = NA) +
+    coord_cartesian(ylim=c(-12, 12)) +
+    scale_x_continuous(breaks=1:10, limits = c(0, 11), expand=c(0, 0)) +
     geom_hline(linetype='dashed', yintercept=0) +
     labs(x='Trial', y='Value Estimate (±SE)', color='Option', fill='Option') +
     lgnd(.95, .05) +
     theme(panel.grid.major.x = element_line())
 }
+
+# # original_df = df
+# latent1 = kalman_filter(df, q_safe = 1)
+# plot_df = cbind(df, latent)
+# plot_kalman_block(plot_df)
+# 
+# df = original_df
+# latent2 = kalman_filter(df, q_safe = .001)
+# plot_df = cbind(df, latent)
+# plot_kalman_block(plot_df)
+
 
